@@ -1,0 +1,14 @@
+﻿!!! WARNING !!!
+
+SimpleRemote is a test tool designed to make it easy for
+other devices to run programs and transfer files on this machine. 
+
+IT HAS NO SECURITY WHATSOEVER.
+
+If used improperly, this can allow attackers to gain access to your
+system. It should only be used on test machines on secure networks.
+
+By proceeding, you are acknowledging that you understand these
+risks, and have taken appropriate steps to secure the machine.
+
+Proceed? [Y/N]: 

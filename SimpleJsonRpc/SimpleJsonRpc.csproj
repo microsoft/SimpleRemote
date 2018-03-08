@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Microsoft.SimpleRemote.SimpleJsonRpc</PackageId>
+    <Authors>microsoft;surfaceauto</Authors>
+    <Version>1.1.0</Version>
+    <Company>Microsoft</Company>
+    <AssemblyTitle>SimpleJsonRpc</AssemblyTitle>
+    <Description>A minimalist json-rpc server for .NET Standard.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageTags>rpc;jsonrpc;json-rpc</PackageTags>
+    <PackageLicenseUrl>https://mit-license.org/</PackageLicenseUrl>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <RepositoryType>git</RepositoryType>
+    <!--
+    <RepositoryUrl>URL GOES HERE</RepositoryUrl>
+    -->
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0; net46</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
+    <PackageReference Include="NLog" Version="4.5.0-rc06" />
+    <PackageReference Include="System.ValueTuple" Version="4.4.0" />
+  </ItemGroup>
+
+</Project>
