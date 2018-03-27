@@ -445,7 +445,7 @@ namespace DUTRemoteTests
         public void Client_BadHostnameLookup()
         {
             RpcClient myclient;
-            var exception = Assert.ThrowsException<AggregateException>( () => myclient = new RpcClient("ThisIsAFakeHostName", 8000), 
+            var exception = Assert.ThrowsException<AggregateException>( () => myclient = new RpcClient("ThisIsAFakeHostName", 8000, 10000), 
                 "System didn't fail when resolving an invalid hostname.");
 
             Assert.IsInstanceOfType(exception.InnerException, typeof(SocketException),
