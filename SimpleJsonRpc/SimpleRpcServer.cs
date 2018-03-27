@@ -18,13 +18,13 @@ namespace SimpleJsonRpc
     /// <remarks>The RpcServer class handles processing RPC requests. It can be used either as a stand-alone server,
     /// or with an existing solution (and just provide parsing, method lookup and execution, and result serialization). 
     /// 
-    /// <br/>The general flow for using this class is:
+    /// The general flow for using this class is:
     ///   - Mark methods you want to call using the SimpleRpcMethod attribute.
     ///   - Pass objects that have the attribute to the Register() function.
     ///   - (For internal server) Call Start() to start the server.
     ///   - (For other server) Call HandleJsonString() to handle inbound requests.
     /// 
-    /// <br/><br/>This class handles parsing requests, looking up and running methods, and serializing results. If you're looking 
+    /// This class handles parsing requests, looking up and running methods, and serializing results. If you're looking 
     /// for the functions that you can call via RPC, please see you should review the documentation for the registered object.</remarks>
     public class SimpleRpcServer
     {
@@ -54,12 +54,12 @@ namespace SimpleJsonRpc
         /// reads to the first new line character, parses the request, calls the appropriate registered
         /// method based on the method name, and sends back the json rpc response. 
         /// 
-        /// <br/><br/>If broadcastPort is specified, it will create a UDP listener on the given port, 
+        /// If broadcastPort is specified, it will create a UDP listener on the given port, 
         /// and wait for broadcast packets with the message "SimpleJsonRpc Ping". When one is received,
         /// it will respond with the current json rpc server port. This is primarily used in lab test
         /// environments only. 
         /// 
-        /// <br/><br/>If you plan on using this behind another server, you may be better served by skipping 
+        /// If you plan on using this behind another server, you may be better served by skipping 
         /// this method and using HandleJsonString() directly.
         /// </remarks>
         /// <param name="serverPort">Port to listen for rpc requests</param>
@@ -133,11 +133,11 @@ namespace SimpleJsonRpc
         /// <remarks>Register functions (with the SimpleRpcMethod annotation) with the rpc system.
         /// Once registered, inbound rpc requests can call methods that were annotated.
         /// 
-        /// <br/>This stores a copy of the object - any inbound rpc call that matches a registered
-        /// method name will be called against the provided object.</remarks>
+        /// This stores a copy of the object - any inbound rpc call that matches a registered
+        /// method name will be called against the provided object.
         /// 
-        /// <br/>If you register objects, that have both annotated a function with the same name,
-        /// the last one will be called.
+        /// If you register several objects that have an annotated function with the same name,
+        /// the last one registered will be called.</remarks>
         /// <param name="rpcObject">Object with SimpleRpcMethod annotations.</param>
         public void Register(object rpcObject)
         {

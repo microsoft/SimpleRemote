@@ -10,6 +10,9 @@ Client DLL documentation is located here: SimpleDUTClientLibrary.RpcClient
 
 Server documentation is located within the SimpleDUTRemote namespace. Functions on the server that can be called via RPC are located here: SimpleDUTRemote.Functions
 
+If you're looking for documentation on the JSON-RPC server, which can be used on its own, additional
+information on that library is located here: [SimpleJsonRpc Library Docs](extra_docs/rpc_tutorial.md)
+
 # Building and Testing the Code #
 
 ## Building Everything ##
