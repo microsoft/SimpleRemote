@@ -427,7 +427,18 @@ namespace SimpleDUTClientLibrary
             return CallRpc<bool>("PluginUnload", new string[] { identifier });
         }
 
-        public IPEndPoint[] GetAllServersOnSubnet(int broadcastPort = 8001, IPAddress broadcastAddress = null, int timeToWait = 5000)
+        /// <summary>
+        /// Get all systems running SimpleRemote on this subnet.
+        /// </summary>
+        /// <remarks>Send a UDP broadcast packet to the current network, and return an array
+        /// of IPEndPoint objects, each containing the IPAddress and Port of a system running
+        /// SimpleRemote. 
+        /// </remarks>
+        /// <param name="broadcastPort">Port to use for the UDP broadcast.</param>
+        /// <param name="broadcastAddress">IP Address to use for the broadcast. Defaults to 255.255.255.255</param>
+        /// <param name="timeToWait">Time to wait for all responses before returning (in milliseconds)</param>
+        /// <returns>An array of IPEndPoints, one for each SimpleRemote server.</returns>
+        public static IPEndPoint[] GetAllServersOnSubnet(int broadcastPort = 8001, IPAddress broadcastAddress = null, int timeToWait = 5000)
         {
             var servers = new HashSet<IPEndPoint>();
 
