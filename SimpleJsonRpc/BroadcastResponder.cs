@@ -14,6 +14,7 @@ namespace SimpleJsonRpc
 
         public static async Task StartBroadcastResponder(int rpcServerPort, int broadcasterResponderPort = 8001, CancellationToken? cancellationToken = null)
         {
+            logger.Info("Started broadcast responder on port {0}", broadcasterResponderPort);
             CancellationToken token = cancellationToken ?? CancellationToken.None;
 
             using (var client = new UdpClient(broadcasterResponderPort))
@@ -29,7 +30,10 @@ namespace SimpleJsonRpc
                 while (true)
                 {
                     var completedTask = await Task.WhenAny(client.ReceiveAsync(), cancellationTask);
-                    if (completedTask.IsCanceled) break;
+                    if (completedTask.IsCanceled){
+                        logger.Info("Stopping broadcast responder.");
+                        break;
+                    }
 
                     // if we're here, we got a UDP message.
                     var udpResult = completedTask.Result;

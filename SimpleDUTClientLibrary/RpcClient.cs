@@ -469,7 +469,7 @@ namespace SimpleDUTClientLibrary
             });
 
             // send our ping.
-            var msg = Encoding.ASCII.GetBytes("SimpleRemote Ping");
+            var msg = Encoding.ASCII.GetBytes("SimpleJsonRpc Ping");
             client.Send(msg, msg.Length, broadcastEndpoint);
 
             // wait for responses
