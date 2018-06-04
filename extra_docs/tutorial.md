@@ -23,6 +23,8 @@ The easiest way to use the server is to use the .NET Client library, which is
 [documented here](@ref SimpleDUTClientLibrary.RpcClient). As a demonstration, we'll use the client
 in PowerShell to show how easy it is.
 
+*Warning for Nuget users: SimpleRemote's nuget packages require the PackageReference format, and will not work correctly if you're using the packages.config format (the default method for managing packges for .NET Framework projects). Please review the [article here](https://blog.nuget.org/20170316/NuGet-now-fully-integrated-into-MSBuild.html) for information on how to switch a project to use PackageReference format (see the section under 'What about other project types that are not .NET Core?').*
+
 Before we begin, we'll need to give PowerShell information about our RpcClient class. To do that,
 navigate to the directory containing the SimpleDUTClientLibrary DLL, and open a PowerShell instance. Then call:
 
