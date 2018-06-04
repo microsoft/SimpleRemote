@@ -16,11 +16,17 @@ if (Test-Path $OUTDIR)
 mkdir $OUTDIR | out-null
 dotnet clean | out-null
 
+# build the common library package
+echo "Building common library package..."
+cd $BASEDIR\SimpleDUTCommonLibrary
+dotnet pack -o $OUTDIR/nuget -c Release | Out-Null
+
 # build the client
 echo "Building client library..."
 cd $BASEDIR\SimpleDUTClientLibrary
 dotnet publish -o $OUTDIR/SimpleRemoteClient --version-suffix $VER_SUFFIX -f net46 -r win10-x64 -c Release | Out-Null
 dotnet pack -o $OUTDIR/nuget -c Release | Out-Null
+
 
 # build the rpc server nuget binary
 echo "Building RPC server package"
