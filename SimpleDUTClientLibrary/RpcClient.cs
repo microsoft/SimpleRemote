@@ -564,7 +564,8 @@ namespace SimpleDUTClientLibrary
             Timer pollingTimer = null;
             Timer timeoutTimer = null;
             TaskCompletionSource<bool> taskCompletionSource = new TaskCompletionSource<bool>();
-            Action<int> completionCallback = (x) => taskCompletionSource.SetResult(true);
+            Action<int> completionCallback = (x) => taskCompletionSource.TrySetResult(true);
+
             var jobid = StartJobWithNotification(command, args, completionCallback);
 
             if (pollingInterval > 0)
@@ -577,12 +578,12 @@ namespace SimpleDUTClientLibrary
                         if (CheckJobCompletion(jobid))
                         {
                             pollingTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                            taskCompletionSource.SetResult(true);
+                            taskCompletionSource.TrySetResult(true);
                         }
                     }
                     catch (Exception e)
                     {
-                        taskCompletionSource.SetException(e);
+                        taskCompletionSource.TrySetException(e);
                     }
                 };
 
