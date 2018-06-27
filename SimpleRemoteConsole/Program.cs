@@ -13,16 +13,19 @@ using System.Collections.Generic;
 using SimpleJsonRpc;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
+using SimpleRemoteConsole.ServiceInterop;
 
 namespace SimpleRemoteConsole
 {
     class Program
     {
         static AutoResetEvent stopEvt = new AutoResetEvent(false);
+        static Task serverTask;
 
         static void Main(string[] args)
         {
-            if (args.Contains("--SuppressUserWarning"))
+            if (args.Contains("--SuppressUserWarning") || args.Contains("--start-service"))
             {
                 Console.WriteLine("User warning suppressed.");
             }
@@ -35,6 +38,76 @@ namespace SimpleRemoteConsole
                 Console.WriteLine("Aborting - user declined to proceed after warning.");
                 return;
             }
+
+            const string svcName = "SimpleDUTRemote-Service";
+            List<string> argsList = new List<string>(args);
+            ServiceInfo info = new ServiceInfo()
+            {
+                ServiceName = svcName,
+                DisplayName = svcName,
+                BinaryPath = Assembly.GetEntryAssembly().Location,
+                ServiceArgs = argsList.ToArray(),
+                StartHandler = InitializeServer,
+                StopHandler = () => { },
+                StartType = StartType.SERVICE_DEMAND_START
+            };
+
+            try
+            {
+                // installs and launches the service. It doesn't fail
+                // if the service is already installed and does not
+                // uninstall then reinstall the service; it will just launch
+                // the existing service
+                if (args.Contains("--install-service"))
+                {
+                    // change the argument from install to start so
+                    // that when the service is started and this method
+                    // is re-entered, it takes the start service path
+                    argsList.Remove("--install-service");
+                    argsList.Add("--start-service");
+                    info.ServiceArgs = argsList.ToArray();
+
+                    var svcStartIndex = argsList.IndexOf("--service-start-type");
+                    if (svcStartIndex != -1 && argsList[svcStartIndex + 1].ToLower() == "auto")
+                    {
+                        info.StartType = StartType.SERVICE_AUTO_START;
+                    }
+
+                    Service svc = new Service(info);
+                    svc.CreateService();
+                }
+                else if (args.Contains("--uninstall-service"))
+                {
+                    Service svc = new Service(info);
+                    svc.RemoveService();
+                }
+                else if (args.Contains("--start-service"))
+                {
+                    Service svc = new Service(info);
+                    svc.StartService();
+                }
+                // if there are no service related commands, we launch the server as usual
+                else
+                {
+                    InitializeServer(args);
+
+                    Console.CancelKeyPress += HandleCancelEvent;
+                    // wait for Ctrl+C
+                    stopEvt.WaitOne();
+
+                    Console.WriteLine("Stopping Server.");
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Exception occurred: " + e.Message);
+                Console.WriteLine("Exiting...");
+            }
+        }
+
+        static void InitializeServer(string[] args)
+        {
+            Logger logger = LogManager.GetCurrentClassLogger();
 
             // determine server port number (default to 8000 unless --port is specified)
             int portNumber = 8000;
@@ -54,12 +127,7 @@ namespace SimpleRemoteConsole
             }
             else
                 broadcastPort = portNumber + 1;
-
-            Logger logger = LogManager.GetCurrentClassLogger();
-
-
-            Console.CancelKeyPress += HandleCancelEvent;
-
+            
             Console.WriteLine("Starting Simple Remote on this system...");
             Console.WriteLine($"You can connect on {Dns.GetHostName()}:{portNumber}");
             foreach (var ip in GetLocalIPAddresses())
@@ -67,7 +135,6 @@ namespace SimpleRemoteConsole
                 Console.WriteLine($"You can also use {ip.Item2}:{portNumber} ({ip.Item1})");
             }
             Console.WriteLine();
-            
 
             // create our object that has our functions
             var remotes = new Functions();
@@ -77,12 +144,7 @@ namespace SimpleRemoteConsole
             server.Register(remotes);
 
             Console.WriteLine("Now ready for connections; press Ctrl+C to exit.");
-            var serverTask = server.Start(portNumber, null, broadcastPort);
-
-            // wait for Ctrl+C
-            stopEvt.WaitOne();
-
-            Console.WriteLine("Stopping Server.");
+            serverTask = server.Start(portNumber, null, broadcastPort);
         }
 
         // return list of tuples containing the interface name and the IP address as a string.

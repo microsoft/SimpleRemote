@@ -43,12 +43,20 @@ namespace SimpleDUTClientLibrary
         {
             var redirects = assemblyFolder.GetFiles("*.dll")
                 .Select(dll => {
-                    var name = AssemblyName.GetAssemblyName(dll.FullName);
+                    AssemblyName name;
+                    try
+                    {
+                        name = AssemblyName.GetAssemblyName(dll.FullName);
+                    }
+                    catch
+                    {
+                        return null;
+                    }
                     var publicKeyToken = name.GetPublicKeyToken().Aggregate("", (s, b) => s += b.ToString("x2", CultureInfo.InvariantCulture));
                     return new AssemblyRedirect(name.Name, name.Version.ToString(), publicKeyToken);
                 });
 
-            _redirectsDictionary = redirects.ToDictionary(x => x.Name);
+            _redirectsDictionary = redirects.Where(x => x != null).ToDictionary(x => x.Name);
         }
 
         public Assembly ResolveAssembly(string assemblyName, Assembly requestingAssembly)
