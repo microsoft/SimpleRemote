@@ -59,3 +59,10 @@ of a called processes as it is generated.
 
 Nlog can also be configured to write to files, the Windows event log, and a number of other locations. To see more
 information on how to configure logging, see the [NLog Tutorial](https://github.com/NLog/NLog/wiki/Tutorial#configuration).
+
+## Running as a Service##
+You can install SimpleRemote as a service on any Windows system. Simple launch the SimpleRemoteConsole exe from an elevated command prompt, and include the arg `--install-service`, as well as any other flags you wish to use (such as specifying the port). By default, the service will not start automatically, unless you specify `--service-start-type auto` when installing the service.
+
+The service can be removed from the system my running `--uninstall-service` from an elevated command prompt. 
+
+While running with a service is useful for some applications, note that the service will not be attached to a specific user session. As such, automating graphical applications may not work as expected. 

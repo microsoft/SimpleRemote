@@ -20,7 +20,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>netcoreapp2.0;net46</TargetFrameworks>
-    <VersionPrefix>1.1.0</VersionPrefix>
+    <VersionPrefix>1.2.0</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,4 +31,4 @@
     <ProjectReference Include="..\SimpleDUTCommonLibrary\SimpleDUTCommonLibrary.csproj" />
   </ItemGroup>
 
-</Project>
+</Project>t>
