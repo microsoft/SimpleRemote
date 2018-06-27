@@ -31,4 +31,4 @@
     <ProjectReference Include="..\SimpleDUTCommonLibrary\SimpleDUTCommonLibrary.csproj" />
   </ItemGroup>
 
-</Project>t>
+</Project>
