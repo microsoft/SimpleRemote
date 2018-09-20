@@ -577,7 +577,7 @@ namespace SimpleDUTRemote
             { 
                 p.StartInfo.FileName = "powershell.exe";
                 p.StartInfo.Arguments = $"-executionpolicy unrestricted -file \"{command}\"";
-                p.StartInfo.Arguments += args;
+                p.StartInfo.Arguments += string.IsNullOrWhiteSpace(args) ? "" : " " + args;
             }
 
             // if we're using exe/bat/cmd/other, execute directly
