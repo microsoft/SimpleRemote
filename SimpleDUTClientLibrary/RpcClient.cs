@@ -378,6 +378,18 @@ namespace SimpleDUTClientLibrary
         }
 
         /// <summary>
+        /// Return if the server process is running as an Administrator.
+        /// </summary>
+        /// <remarks>This function only works if the server is running on a Windows system. It
+        /// will throw a PlatformNotSupportedException if the server is running on Linux or MacOS.
+        /// </remarks>
+        /// <returns>True if server is running as an administrator. False otherwise.</returns>
+        public bool GetIsRunningAsAdmin()
+        {
+            return CallRpc<bool>("GetIsRunningAsAdmin");
+        }
+
+        /// <summary>
         /// Load a plugin on the server.
         /// </summary>
         /// <remarks>Load a class from a .NET (or .NET Core) DLL on the remote server. This allows you

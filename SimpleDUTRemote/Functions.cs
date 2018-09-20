@@ -15,6 +15,8 @@ using System.Net;
 using SimpleDUTRemote.JobSystem;
 using System.Threading.Tasks;
 using SimpleJsonRpc;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
 
 namespace SimpleDUTRemote
 {
@@ -483,6 +485,25 @@ namespace SimpleDUTRemote
             }
 
             return SimpleRpcServer.currentClient.Value.ToString();
+        }
+
+        /// <summary>
+        /// Return if the current process is running as an Administrator.
+        /// </summary>
+        /// <remarks>This function only works on Windows. It will throw PlatformNotSupportedException
+        /// on MacOS and Linux.
+        /// </remarks> 
+        /// <returns>True if this process is running as an administrator. False otherwise.</returns>
+        [SimpleRpcMethod]
+        public static bool GetIsRunningAsAdmin()
+        {
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                throw new PlatformNotSupportedException("This function is only supported on Windows OS at this time.");
+            }
+
+            var identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
         }
 
         #endregion

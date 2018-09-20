@@ -14,6 +14,7 @@ using System.Threading;
 using System.IO;
 using System.Net.Sockets;
 using SimpleJsonRpc;
+using System.Security.Principal;
 
 namespace DUTRemoteTests
 {
@@ -591,6 +592,13 @@ namespace DUTRemoteTests
         {
             var ex = Assert.ThrowsException<Exception>(() => client.PluginLoad("testId", "PluginExample.SimpleTest", "Not_A_Path.dll"));
             Assert.IsTrue(ex.Message.Contains("IOException"), "The exception from the server didn't have the expected IOException in the message.");
+        }
+
+        [TestMethod]
+        public void Client_IsServerRunningAsAdmin()
+        {
+            var isTestRunningAsAdmin = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+            Assert.AreEqual(isTestRunningAsAdmin, client.GetIsRunningAsAdmin(), "Server did not return a correct response for if it was running as admin.");
         }
 
 
