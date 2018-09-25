@@ -452,14 +452,30 @@ namespace SimpleDUTClientLibrary
         /// <param name="broadcastPort">Port to use for the UDP broadcast.</param>
         /// <param name="broadcastAddress">IP Address to use for the broadcast. Defaults to 255.255.255.255</param>
         /// <param name="timeToWait">Time to wait for all responses before returning (in milliseconds)</param>
+        /// <param name="localAdapterAddress">IP Address of the local adapter to use for the broadcast. Only needed if
+        /// you have multiple active network adapters on the system.</param>
         /// <returns>An array of IPEndPoints, one for each SimpleRemote server.</returns>
-        public static IPEndPoint[] GetAllServersOnSubnet(int broadcastPort = 8001, IPAddress broadcastAddress = null, int timeToWait = 5000)
+        public static IPEndPoint[] GetAllServersOnSubnet(int broadcastPort = 8001, IPAddress broadcastAddress = null, 
+            int timeToWait = 5000, IPAddress localAdapterAddress = null)
         {
+            UdpClient client;
             var servers = new HashSet<IPEndPoint>();
 
             broadcastAddress = broadcastAddress ?? IPAddress.Broadcast;
             var broadcastEndpoint = new IPEndPoint(broadcastAddress, broadcastPort);
-            var client = new UdpClient(0); // auto assign port
+
+            // setup the client using an automatically set port. 
+            // bind to a specific adapter if needed. 
+            if (localAdapterAddress != null)
+            {
+                var localEp = new IPEndPoint(localAdapterAddress, 0);
+                client = new UdpClient(localEp);
+            }
+            else
+            {
+                client = new UdpClient(0);
+            }
+
             client.EnableBroadcast = true;
 
             // setup a thread to handle receive operations
