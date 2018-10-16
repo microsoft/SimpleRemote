@@ -73,9 +73,12 @@ namespace SimpleDUTRemote
                     return true;
                 }
             }
-            catch (IOException)
+            catch (Exception e)
             {
-                return false;
+                if (e is IOException || e is UnauthorizedAccessException)
+                    return false;
+                else
+                    throw;
             }
 
         }

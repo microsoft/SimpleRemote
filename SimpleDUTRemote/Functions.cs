@@ -369,7 +369,21 @@ namespace SimpleDUTRemote
         [SimpleRpcMethod]
         public static int Upload(string path, bool overwrite, long port = 0)
         {
-            if (!ReadWriteChecks.CheckWriteToDir(Directory.GetParent(path).FullName))
+            // if the path to receive the file doesn't exist, try to create it.
+            if (!Directory.Exists(path))
+            {
+                try {
+                    Directory.CreateDirectory(path);
+                }
+                catch (Exception)
+                {
+                    throw new IOException($"Can't create receive directory {path}. " +
+                    "There was either a permission problem, or the path is invalid."
+                    );
+                }
+            }
+
+            if (!ReadWriteChecks.CheckWriteToDir(path))
             {
                 throw new IOException($"Can't write to {path}, there was either a permission problem or the path doesn't exist.");
             }
