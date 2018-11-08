@@ -142,6 +142,39 @@ namespace DUTRemoteTests
         }
 
         [TestMethod]
+        public void Client_StartJobWithProgress_CheckJobOutput()
+        {
+            AutoResetEvent evt = new AutoResetEvent(false);
+            int completedJob = -1;
+            var completedMsgs = new List<string>();
+
+            Action<int> cb = (jobid) =>
+            {
+                completedJob = jobid;
+                evt.Set();
+            };
+
+            Action<string> progressEvent = (msg) => completedMsgs.Add(msg);
+
+            int newJobId = client.StartJobWithProgress("systeminfo.exe", null, progressEvent, cb);
+
+            Assert.IsTrue(newJobId > 0);
+
+            Assert.IsTrue(evt.WaitOne(5000), "Callback took too long to be received.");
+            Assert.IsTrue(completedJob == newJobId);
+
+            Assert.IsTrue(client.CheckJobCompletion(completedJob), "Job declared complete does not appear to be complete on server.");
+
+            string result = client.GetJobResult(completedJob);
+            Assert.IsTrue(result.Length == 0, "Result was greater than zero, even though we used StartJobWithProgress");
+            
+            Assert.IsTrue(completedMsgs.Count() > 0, "Did not receive any progress messages.");
+            var OSNameMsg = completedMsgs.Where((x) => x.StartsWith("OS Name:"));
+            Assert.IsTrue(OSNameMsg.Count() > 0, "Did not receive a message with OS Name");
+
+        }
+
+        [TestMethod]
         public void Client_StartJobWithArgsAndNotification()
         {
             AutoResetEvent evt = new AutoResetEvent(false);

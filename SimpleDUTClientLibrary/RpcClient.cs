@@ -190,6 +190,80 @@ namespace SimpleDUTClientLibrary
         }
 
         /// <summary>
+        /// Start job, and stream standard out from the called process to the client.
+        /// </summary>
+        /// <remarks>You should call GetJobResult() on the completed job, even though there will be no output, to acknowledge
+        /// to the server that you're done with the job. This will remove it from the server's job dictionary.</remarks>
+        /// <param name="command">Path to command to run (bat/exe/ps1).</param>
+        /// <param name="args">Arguments to pass to the command (use null or empty string for no args).</param>
+        /// <param name="progressCallback">Callback to run whenever the called process emits a line of text. Text will be an argument for the function.</param>
+        /// <param name="completionCallback">Callback to run once job completes - the completed job number will be provided as a argument to the function.</param>
+        /// <param name="localIP">Local IP address to use for inbound notification. If null, will let server determine this machine's address.</param>
+        /// <returns>Job id for the newly created job.</returns>
+        public int StartJobWithProgress(string command, string args, Action<string> progressCallback, Action<int> completionCallback, IPAddress localIP = null)
+        {
+            // setup completion listener first
+            TcpListener completionListener = new TcpListener(IPAddress.Any, 0);
+            completionListener.Start(1);
+            var localCompletionPort = ((IPEndPoint)completionListener.LocalEndpoint).Port;
+
+            // this task will be fired when the server connects back to the client.
+            completionListener.AcceptTcpClientAsync().ContinueWith((t) =>
+            {
+                try
+                {
+                    var client = t.Result;
+                    string msg;
+
+                    using (client)
+                    using (StreamReader cbReader = new StreamReader(client.GetStream()))
+                    {
+                        msg = cbReader.ReadToEnd();
+                    }
+
+                    // we know the message is "JOB X COMPLETED" so just split on space, and parse the middle.
+                    int jobNumber = int.Parse(msg.Split(' ')[1]);
+                    completionCallback?.Invoke(jobNumber);
+                }
+                finally
+                {
+                    // always close the listener - we no longer need it. 
+                    completionListener.Stop();
+                }
+            });
+
+            // setup progress listener next
+            TcpListener progressListener = new TcpListener(IPAddress.Any, 0);
+            progressListener.Start(1);
+            var localProgressPort = ((IPEndPoint)progressListener.LocalEndpoint).Port;
+
+            progressListener.AcceptTcpClientAsync().ContinueWith((t) => 
+            {
+                try
+                {
+                    var client = t.Result;
+                    string msg;
+
+                    using (client)
+                    using (StreamReader progressReader = new StreamReader(client.GetStream()))
+                    {
+                        while ((msg = progressReader.ReadLine()) != null)
+                        {
+                            progressCallback?.Invoke(msg);
+                        }
+                    }
+                }
+                finally
+                {
+                    progressListener.Stop();
+                }
+            });
+
+            var methodArgs = new object[] { localIP, localCompletionPort, localProgressPort, command, args };
+            return CallRpc<int>("StartJobWithProgress", methodArgs);
+        }
+
+        /// <summary>
         /// Determine if a job has finished executing.
         /// </summary>
         /// <param name="jobId">Job id provided by StartJob()</param>

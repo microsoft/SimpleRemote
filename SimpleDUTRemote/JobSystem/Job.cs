@@ -23,6 +23,10 @@ namespace SimpleDUTRemote.JobSystem
         private JobCallbackInfo callbackInfo;
         private static int nextJobId = 0;
 
+        //items specifically for progress streaming
+        private TcpClient progressClient;
+        private StreamWriter progressStream;
+
         public static Job CreateJob(Process p, JobCallbackInfo callback = null)
         {
             var newid = Interlocked.Increment(ref nextJobId);
@@ -35,12 +39,30 @@ namespace SimpleDUTRemote.JobSystem
             jobId = id;
             this.process = process;
 
+            // if a progress port was specified in callback info, prepare for streaming
+            if (callback != null && callback.ProgressPort > 0)
+            {
+                var streamEp = new IPEndPoint(callback.Address, callback.ProgressPort);
+                progressClient = new TcpClient();
+                progressClient.Connect(streamEp);
+                progressStream = new StreamWriter(progressClient.GetStream());
+            }
+
             output = new StringBuilder();
+
             DataReceivedEventHandler outputHandler = (s, a) =>
             {
                 logger.Debug($"Job {id} output: {a.Data}");
-                output.AppendLine(a.Data);
+
+                if (progressStream != null)
+                {
+                    progressStream?.WriteLine(a.Data);
+                }
+                else {
+                    output.AppendLine(a.Data);
+                }
             };
+
             process.OutputDataReceived += outputHandler;
             process.ErrorDataReceived += outputHandler;
 
@@ -86,6 +108,13 @@ namespace SimpleDUTRemote.JobSystem
             }
 
             logger.Debug("Successfully sent job completion message for job {0}", jobId);
+
+            // if necessary, shutdown progress stream
+            if (progressStream != null)
+            {
+                progressStream.Close(); //closes all streams
+                progressClient.Close(); //closes tcp client.
+            }
         }
 
         public bool IsDone()
@@ -123,5 +152,7 @@ namespace SimpleDUTRemote.JobSystem
     {
         public int Port;
         public IPAddress Address;
+
+        public int ProgressPort;
     }
 }

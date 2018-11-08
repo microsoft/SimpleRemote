@@ -172,7 +172,60 @@ namespace SimpleDUTRemote
             JobCallbackInfo info = new JobCallbackInfo()
             {
                 Address = callbackIp,
-                Port = (int) callbackPort
+                Port = (int) callbackPort,
+                ProgressPort = -1
+            };
+
+            Process p = SetupProcess(programName, args, true);
+            var newJob = Job.CreateJob(p, info);
+            jobs[newJob.jobId] = newJob;
+
+            return newJob.jobId;
+        }
+
+        /// <summary>
+        /// Start a job on a remote machine, sends progress messages, and a completion message.
+        /// </summary>
+        /// <remarks>
+        /// Operates identically to StartJobWithNotification(), but every time the called process emits a line of output,
+        /// the server will send the line of output via TCP to the port specified by `progressPort`. As with 
+        /// StartJobWithNotification(), a completion message will be sent to the callbackPort once the job finishes. You must maintain
+        /// a network connection during the process lifetime, otherwise the server will error. 
+        /// <br/><br/>
+        /// Note: When this function is used, the server will no longer store process output in memory. Calling GetJobResult() will
+        /// result in an empty string. It is recommended you still call GetJobResult() to acknowledge to the server that you're 
+        /// done with the job, but any output should have been captured by the client.
+        /// </remarks>
+        /// <param name="callbackAddress">IP address of the client machine, if not specified will use data from this connection.</param>
+        /// <param name="callbackPort">TCP port number on the client machine to connect to for the callback</param>
+        /// <param name="progressPort">TCP port number on the client machine to send progress.</param>
+        /// <param name="programName">Name of called program (exe/bat/ps1).</param>
+        /// <param name="args">Arguments for the called program.</param>
+        /// <returns>Job id of the newly generated job.</returns>
+        [SimpleRpcMethod]
+        public int StartJobWithProgress(string callbackAddress, long callbackPort, long progressPort, 
+            string programName, string args = null)
+        {
+            IPAddress callbackIp;
+
+            if (String.IsNullOrWhiteSpace(callbackAddress))
+            {
+                if (SimpleRpcServer.currentClient == null || SimpleRpcServer.currentClient.Value == null)
+                {
+                    throw new InvalidOperationException("No callback IP provided, and unable to get current connection data.");
+                }
+                callbackIp = SimpleRpcServer.currentClient.Value.Address;
+            }
+            else
+            {
+                callbackIp = IPAddress.Parse(callbackAddress);
+            }
+
+            JobCallbackInfo info = new JobCallbackInfo()
+            {
+                Address = callbackIp,
+                Port = (int) callbackPort,
+                ProgressPort = (int) progressPort
             };
 
             Process p = SetupProcess(programName, args, true);
