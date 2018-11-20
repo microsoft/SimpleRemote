@@ -86,6 +86,32 @@ namespace DUTRemoteTests
         }
 
         [TestMethod]
+        public void RunWithResultAndExitCode()
+        {
+            string output;
+            using (var client = GetClient())
+            using (var rstream = new StreamReader(client.GetStream()))
+            using (var wstream = new StreamWriter(client.GetStream()))
+            {
+                var request = new JsonRpcRequest();
+                request.method = "RunWithResultAndExitCode";
+                request.args = new List<object>() { "systeminfo.exe" };
+                wstream.WriteLine(JsonConvert.SerializeObject(request) + "\r\n");
+                wstream.Flush();
+
+                output = rstream.ReadToEnd();
+            }
+
+            var resp = JsonConvert.DeserializeObject<JsonRpcResponse>(output);
+            var result = ((Newtonsoft.Json.Linq.JArray)resp.result).ToObject<string[]>();
+
+            Assert.IsNull(resp.error);
+            Assert.IsTrue(result.Length > 1, "Should return an array of strings");
+            Assert.IsTrue(result[0].Contains("0"), "Exit code was incorrect (nonzero).");
+            Assert.IsTrue(result[1].Contains("OS Name:"), "Result doesn't contain expected items.");
+        }
+
+        [TestMethod]
         public void KillProcess()
         {
             // start our process

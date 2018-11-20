@@ -104,6 +104,52 @@ namespace SimpleDUTRemote
 
             return output.ToString();
         }
+
+        /// <summary>
+        /// Start an exe, bat, or ps1 file on the remote machine; block and return exit code and result when complete.
+        /// </summary>
+        /// <remarks>
+        /// Runs an exe, bat, or powershell script on the remote machine, capturing output from the process. 
+        /// This function will block until the item finishes, and should be used with caution for items that will 
+        /// take an extended amount of time to run, as waiting on a long-running process may trigger a timeout
+        /// exception on your client (depending on your client's socket settings). 
+        /// If you need to start a long-running task, consider using StartJob() instead.
+        /// <br/><br/>Some networking devices may automatically disconnect TCP connections that are
+        /// idle for extended periods. Enabling TCP keep alive packets on your client may help,
+        /// at the expense of additional power consumption on the server. 
+        /// </remarks>
+        /// <param name="programName">Name of called program (exe/bat/ps1).</param>
+        /// <param name="args">Arguments for the called program.</param>
+        /// <returns>Array of strings containing the exit code, and merged standard output and error from called process.</returns>
+        [SimpleRpcMethod]
+        public static string[] RunWithResultAndExitCode(string programName, string args = null)
+        {
+            StringBuilder output = new StringBuilder();
+            string exitCode;
+            using (Process p = SetupProcess(programName, args, true))
+            {
+                DataReceivedEventHandler outputHandler = (s, a) =>
+                {
+                    logger.Debug($"{programName} output: {a.Data}");
+                    output.AppendLine(a.Data);
+                };
+                p.OutputDataReceived += outputHandler;
+                p.ErrorDataReceived += outputHandler;
+
+                logger.Info("Starting program...");
+                p.Start();
+
+                p.BeginErrorReadLine();
+                p.BeginOutputReadLine();
+
+                logger.Info("Waiting for called program to complete...");
+                p.WaitForExit();
+                logger.Info($"Process {p.StartInfo.FileName} has completed.");
+                exitCode = p.ExitCode.ToString();
+            }
+
+            return new string[] {exitCode, output.ToString()};
+        }
         #endregion
 
         #region Job Functions (Non-Blocking, Callbacks)
