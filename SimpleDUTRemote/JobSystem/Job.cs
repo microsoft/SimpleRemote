@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace SimpleDUTRemote.JobSystem
 {
-    public class Job
+    public class Job : IDisposable
     {
         public int jobId { get; private set; }
         private Process process;
@@ -26,6 +26,13 @@ namespace SimpleDUTRemote.JobSystem
         //items specifically for progress streaming
         private TcpClient progressClient;
         private StreamWriter progressStream;
+        private const int NETWORK_TIMEOUT_MS = 5000;
+
+        // items for falling back to a log if progress streaming fails.
+        private const string EMERGENCY_LOG_BASENAME = "SimpleRemote-JobOutput-";
+        private const string EMERGENCY_LOG_TIME_FORMAT = "s";
+        private string emergencyLogFilename = null;
+        private StreamWriter emergencyLogStream = null;
 
         public static Job CreateJob(Process p, JobCallbackInfo callback = null)
         {
@@ -42,10 +49,23 @@ namespace SimpleDUTRemote.JobSystem
             // if a progress port was specified in callback info, prepare for streaming
             if (callback != null && callback.ProgressPort > 0)
             {
+                emergencyLogFilename = EMERGENCY_LOG_BASENAME + DateTime.Now.ToString(EMERGENCY_LOG_TIME_FORMAT) + ".txt";
                 var streamEp = new IPEndPoint(callback.Address, callback.ProgressPort);
                 progressClient = new TcpClient();
-                progressClient.Connect(streamEp);
-                progressStream = new StreamWriter(progressClient.GetStream());
+                progressClient.SendTimeout = NETWORK_TIMEOUT_MS;
+                if (!progressClient.ConnectAsync(streamEp.Address,streamEp.Port).Wait(NETWORK_TIMEOUT_MS))
+                {
+                    // failed to connect - log and proceed.
+                    logger.Warn("Failed to initiate streaming progress - could not connect to client ");
+                    logger.Warn("Using file log {0} instead.", emergencyLogFilename);
+                    emergencyLogStream = new StreamWriter(new FileStream(emergencyLogFilename, FileMode.Create));
+                }
+                else
+                {
+                    // connection successful
+                    progressStream = new StreamWriter(progressClient.GetStream());
+                }
+                    
             }
 
             output = new StringBuilder();
@@ -54,21 +74,49 @@ namespace SimpleDUTRemote.JobSystem
             {
                 logger.Debug($"Job {id} output: {a.Data}");
 
-                if (progressStream != null)
-                {
-                    progressStream?.WriteLine(a.Data);
+                try{
+                    // try to log to the emergency stream first, because if it exists, 
+                    // that means we tried to stream and failed
+                    if (emergencyLogStream != null)
+                    {
+                        emergencyLogStream.WriteLine(a.Data);
+                    }
+                    // if there's no emergency stream, try to use the progress stream if it's there
+                    else if (progressStream != null)
+                    {
+                        progressStream.WriteLine(a.Data);
+                    }
+                    // if there's nothing else, use the internal buffer, because we weren't streaming
+                    else {
+                        output.AppendLine(a.Data);
+                    }
                 }
-                else {
-                    output.AppendLine(a.Data);
+                catch (SocketException)
+                {
+                    logger.Warn("Failed to stream progress from process - socket exception ocurred.");
+                    logger.Warn("Switching file log {0} instead.", emergencyLogFilename);
+
+                    // a write to a socket failed. switch to the emergency file log.
+                    emergencyLogStream = new StreamWriter(new FileStream(emergencyLogFilename, FileMode.Create));
+
+                    // write the data
+                    emergencyLogStream.WriteLine(a.Data);
+
+                    // close the socket and network stream
+                    progressStream.Close();
+                    progressClient.Close();
+                    progressStream = null;
+                    progressClient = null;
                 }
             };
 
             process.OutputDataReceived += outputHandler;
             process.ErrorDataReceived += outputHandler;
 
-            // add a logging message when a job finishes
+            // add a logging message when a job finishes and ensure that streams are closed (if present)
             process.EnableRaisingEvents = true;
             process.Exited += (o, e) => logger.Info($"Job {id} finished executing.");
+            process.Exited += (o, e) => CloseStreams();
 
             if (callback != null)
             {
@@ -95,7 +143,7 @@ namespace SimpleDUTRemote.JobSystem
             {
                 // TCP Client's Connect method doesn't have a settable timeout, but we can cheat using this method.
                 // http://stackoverflow.com/questions/17118632/how-to-set-the-timeout-for-a-tcpclient
-                if (!client.ConnectAsync(callbackInfo.Address, callbackInfo.Port).Wait(5000))
+                if (!client.ConnectAsync(callbackInfo.Address, callbackInfo.Port).Wait(NETWORK_TIMEOUT_MS))
                 {
                     logger.Warn("Failed to contact client with completion message for job {0}", jobId);
                     return;
@@ -108,13 +156,6 @@ namespace SimpleDUTRemote.JobSystem
             }
 
             logger.Debug("Successfully sent job completion message for job {0}", jobId);
-
-            // if necessary, shutdown progress stream
-            if (progressStream != null)
-            {
-                progressStream.Close(); //closes all streams
-                progressClient.Close(); //closes tcp client.
-            }
         }
 
         public bool IsDone()
@@ -128,7 +169,6 @@ namespace SimpleDUTRemote.JobSystem
             {
                 throw new InvalidOperationException("Process hasn't finished executing. Cannot get result.");
             }
-
             return output.ToString();
         }
 
@@ -144,8 +184,44 @@ namespace SimpleDUTRemote.JobSystem
         {
             logger.Info("Terminating job id: {0}", jobId);
             process.Kill();
+            Dispose();
         }
 
+        private void CloseStreams()
+        {
+            // if necessary, shutdown progress stream or emergency stream
+            if (progressStream != null)
+            {
+                progressStream?.Close(); //closes network streams
+                progressClient?.Close(); //closes tcp client.
+                progressStream = null;
+                progressClient = null;
+            }
+            if (emergencyLogStream != null)
+            {
+                emergencyLogStream.Close(); //close file stream
+                emergencyLogStream = null;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool safeToCleanManagedResources)
+        {
+            if (safeToCleanManagedResources)
+            {
+                CloseStreams();
+            }
+        }
+
+        ~Job()
+        {
+            Dispose(false);
+        }
     }
 
     public class JobCallbackInfo
