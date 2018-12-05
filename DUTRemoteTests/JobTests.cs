@@ -75,14 +75,15 @@ namespace DUTRemoteTests
         public void Job_CheckCallback()
         {
             var self = IPAddress.Loopback;
-            var port = 13000;
+            var port = 0;
             string receivedMessage = null;
-
-            var id = remoteFunctions.StartJobWithNotification(self.ToString(), port, "systeminfo.exe");
 
             var server = new TcpListener(self, port);
             server.Start(1);
+            port = ((IPEndPoint)server.Server.LocalEndPoint).Port;
             var client = server.AcceptTcpClientAsync();
+
+            var id = remoteFunctions.StartJobWithNotification(self.ToString(), port, "systeminfo.exe");
 
             if (!client.Wait(10 * 1000))
             {
@@ -99,6 +100,179 @@ namespace DUTRemoteTests
             Assert.IsTrue(receivedMessage == $"JOB {id} COMPLETED", "Callback has wrong data");
             Assert.IsTrue(remoteFunctions.IsJobComplete(id));
             
+        }
+
+        [TestMethod]
+        public void Job_CheckStreamingProgress_ExpectSuccess()
+        {
+            var old_files = Directory.GetFiles(Path.GetTempPath()).Where((x) => x.Contains("SimpleRemote-JobOutput-"));
+            old_files.ToList().ForEach(x => File.Delete(x));
+
+            var self = IPAddress.Loopback;
+            var completionPort = 0;
+            var progressPort = 0;
+            string receivedMessage = null;
+
+            // completion server items
+            var completionServer = new TcpListener(self, completionPort);
+            completionServer.Start(1);
+            completionPort = ((IPEndPoint)completionServer.Server.LocalEndPoint).Port;
+            var completionClient = completionServer.AcceptTcpClientAsync();
+
+            // progress server items
+            var progressServer = new TcpListener(self, progressPort);
+            progressServer.Start(1);
+            progressPort = ((IPEndPoint)progressServer.Server.LocalEndPoint).Port;
+            var progressClient = progressServer.AcceptTcpClientAsync();
+
+            // start streaming job
+            var id = remoteFunctions.StartJobWithProgress(self.ToString(), completionPort, progressPort, "systeminfo.exe");
+
+            // wait for completion
+
+            if (!completionClient.Wait(10 * 1000))
+            {
+                completionServer.Stop();
+                progressServer.Stop();
+                Assert.Fail("Timed out waiting for callback.");
+            }
+
+            remoteFunctions.GetJobResult(id);
+
+            using (var reader = new StreamReader(progressClient.Result.GetStream()))
+            {
+                receivedMessage = reader.ReadToEnd();
+            }
+
+            // clean all sockets.
+            progressClient.Result.Dispose();
+            completionClient.Result.Dispose();
+
+            progressServer.Stop();
+            completionServer.Stop();
+
+            Assert.IsTrue(receivedMessage.Contains("OS Name:"), "Missing expected text from progress stream.");
+
+            // confirm there's a log file.
+            var files = Directory.GetFiles(Path.GetTempPath()).Where((x) => x.Contains("SimpleRemote-JobOutput-"));
+            Assert.IsTrue(files.Count() == 1, "Incorrect number of fallback logs found.");
+            var file = files.First();
+
+            var fileText = File.ReadAllText(file);
+            Assert.IsTrue(fileText.Contains("OS Name:"), "Missing expected text from progress file.");
+            Assert.IsTrue(fileText.Contains("systeminfo.exe"), "Missing called process name from progress file.");
+        }
+
+        [TestMethod]
+        public void Job_CheckStreamingProgress_ExpectFileFallback_NoListener()
+        {
+            var old_files = Directory.GetFiles(Path.GetTempPath()).Where((x) => x.Contains("SimpleRemote-JobOutput-"));
+            old_files.ToList().ForEach(x => File.Delete(x));
+
+            var self = IPAddress.Loopback;
+            var completionPort = 0;
+            var progressPort = 13000;
+            string receivedMessage = null;
+
+            // completion server items
+            var completionServer = new TcpListener(self, completionPort);
+            completionServer.Start(1);
+            completionPort = ((IPEndPoint)completionServer.Server.LocalEndPoint).Port;
+            var completionClient = completionServer.AcceptTcpClientAsync();
+
+            // progress server items
+            // N/A - we're testing what happens when we're not listening
+
+            // start streaming job
+            var id = remoteFunctions.StartJobWithProgress(self.ToString(), completionPort, progressPort, "systeminfo.exe");
+
+            // wait for completion
+
+            if (!completionClient.Wait(10 * 1000))
+            {
+                completionServer.Stop();
+                Assert.Fail("Timed out waiting for callback.");
+            }
+
+            remoteFunctions.GetJobResult(id);
+
+            // confirm there's a log file.
+            var files = Directory.GetFiles(Path.GetTempPath()).Where((x) => x.Contains("SimpleRemote-JobOutput-"));
+            Assert.IsTrue(files.Count() == 1, $"Incorrect number of fallback logs found: {files.Count()} instead of 1");
+            var file = files.First();
+
+            Assert.IsTrue(DateTime.Now.Subtract(File.GetLastWriteTime(file)).Seconds < 10, "File found is too old.");
+
+            // read the log file
+            receivedMessage = File.ReadAllText(file);
+
+            // clean all sockets.
+            completionClient.Result.Dispose();
+            completionServer.Stop();
+
+            Assert.IsTrue(receivedMessage.Contains("OS Name:"), "Missing expected text from progress file.");
+
+            File.Delete(file);
+
+        }
+
+        [TestMethod]
+        public void Job_CheckStreamingProgress_ExpectFileFallback_ClientClosedConnectionEarly()
+        {
+            var old_files = Directory.GetFiles(Path.GetTempPath()).Where((x) => x.Contains("SimpleRemote-JobOutput-"));
+            old_files.ToList().ForEach(x => File.Delete(x));
+
+            var self = IPAddress.Loopback;
+            var completionPort = 0;
+            var progressPort = 0;
+            string receivedMessage = null;
+
+            // completion server items
+            var completionServer = new TcpListener(self, completionPort);
+            completionServer.Start(1);
+            completionPort = ((IPEndPoint)completionServer.Server.LocalEndPoint).Port;
+            var completionClient = completionServer.AcceptTcpClientAsync();
+
+            // progress server items
+            var progressServer = new TcpListener(self, progressPort);
+            progressServer.Start(1);
+            progressPort = ((IPEndPoint)progressServer.Server.LocalEndPoint).Port;
+            var progressClient = progressServer.AcceptSocketAsync();
+
+            // close the client as soon as it's connected.
+            progressClient.ContinueWith((t) => t.Result.Close());
+
+            // start streaming job
+            var id = remoteFunctions.StartJobWithProgress(self.ToString(), completionPort, progressPort, "systeminfo.exe");
+
+            // wait for completion
+            if (!completionClient.Wait(10 * 1000))
+            {
+                completionServer.Stop();
+                progressServer.Stop();
+                Assert.Fail("Timed out waiting for callback.");
+            }
+
+            remoteFunctions.GetJobResult(id);
+
+            // confirm there's a fallback file.
+            var files = Directory.GetFiles(Path.GetTempPath()).Where((x) => x.Contains("SimpleRemote-JobOutput-"));
+            Assert.IsTrue(files.Count() == 1, $"Incorrect number of fallback logs found: {files.Count()} instead of 1");
+            var file = files.First();
+
+            Assert.IsTrue(DateTime.Now.Subtract(File.GetLastWriteTime(file)).Seconds < 10, "File found is too old.");
+
+            // read the fallback file
+            receivedMessage += File.ReadAllText(file);
+
+            // clean all sockets.
+            progressClient.Result.Dispose();
+            completionClient.Result.Dispose();
+
+            progressServer.Stop();
+            completionServer.Stop();
+
+            Assert.IsTrue(receivedMessage.Contains("OS Name:"), "Missing expected text from progress file.");
         }
 
         [TestMethod]
