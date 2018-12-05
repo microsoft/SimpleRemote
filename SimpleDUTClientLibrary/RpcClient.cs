@@ -193,10 +193,14 @@ namespace SimpleDUTClientLibrary
         /// Start job, and stream standard out from the called process to the client.
         /// </summary>
         /// <remarks>You should call GetJobResult() on the completed job, even though there will be no output, to acknowledge
-        /// to the server that you're done with the job. This will remove it from the server's job dictionary.</remarks>
+        /// to the server that you're done with the job and to release resources associated with it on the server.
+        /// <br/><br/>
+        /// Because this will result in both network and disk activity on the server, it is not recommended
+        /// for use while performing power sensitive measurements.
+        /// </remarks>
         /// <param name="command">Path to command to run (bat/exe/ps1).</param>
         /// <param name="args">Arguments to pass to the command (use null or empty string for no args).</param>
-        /// <param name="progressCallback">Callback to run whenever the called process emits a line of text. Text will be an argument for the function.</param>
+        /// <param name="progressCallback">Callback to run whenever the called process emits a line of text. Emitted text will be an argument for the function.</param>
         /// <param name="completionCallback">Callback to run once job completes - the completed job number will be provided as a argument to the function.</param>
         /// <param name="localIP">Local IP address to use for inbound notification. If null, will let server determine this machine's address.</param>
         /// <returns>Job id for the newly created job.</returns>

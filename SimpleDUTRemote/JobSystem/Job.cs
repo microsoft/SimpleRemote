@@ -4,6 +4,7 @@
 using NLog;
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -18,21 +19,25 @@ namespace SimpleDUTRemote.JobSystem
     {
         public int jobId { get; private set; }
         private Process process;
-        private StringBuilder output;
         private static Logger logger = LogManager.GetLogger("JobSystem");
         private JobCallbackInfo callbackInfo;
         private static int nextJobId = 0;
 
-        //items specifically for progress streaming
+        // used to capture non-streaming output in memory
+        private StringBuilder output = null;
+
+        // items for progress streaming (network)
         private TcpClient progressClient;
         private StreamWriter progressStream;
         private const int NETWORK_TIMEOUT_MS = 5000;
+        private Task streamingLoopTask;
+        private BlockingCollection<string> streamingCollection;
 
-        // items for falling back to a log if progress streaming fails.
-        private const string EMERGENCY_LOG_BASENAME = "SimpleRemote-JobOutput-";
-        private const string EMERGENCY_LOG_TIME_FORMAT = "s";
-        private string emergencyLogFilename = null;
-        private StreamWriter emergencyLogStream = null;
+        // while streaming to network, we also stream to a backup file
+        private const string OUTPUT_LOG_BASENAME = "SimpleRemote-JobOutput-";
+        private const string OUTPUT_LOG_TIME_FORMAT = "yyyy-MM-dd_HH-mm-ss";
+        private string outputLogFilename = null;
+        private StreamWriter outputLogSteam = null;
 
         public static Job CreateJob(Process p, JobCallbackInfo callback = null)
         {
@@ -49,74 +54,32 @@ namespace SimpleDUTRemote.JobSystem
             // if a progress port was specified in callback info, prepare for streaming
             if (callback != null && callback.ProgressPort > 0)
             {
-                emergencyLogFilename = EMERGENCY_LOG_BASENAME + DateTime.Now.ToString(EMERGENCY_LOG_TIME_FORMAT) + ".txt";
                 var streamEp = new IPEndPoint(callback.Address, callback.ProgressPort);
-                progressClient = new TcpClient();
-                progressClient.SendTimeout = NETWORK_TIMEOUT_MS;
-                if (!progressClient.ConnectAsync(streamEp.Address,streamEp.Port).Wait(NETWORK_TIMEOUT_MS))
-                {
-                    // failed to connect - log and proceed.
-                    logger.Warn("Failed to initiate streaming progress - could not connect to client ");
-                    logger.Warn("Using file log {0} instead.", emergencyLogFilename);
-                    emergencyLogStream = new StreamWriter(new FileStream(emergencyLogFilename, FileMode.Create));
-                }
-                else
-                {
-                    // connection successful
-                    progressStream = new StreamWriter(progressClient.GetStream());
-                }
-                    
+                CreateProgressStream(streamEp);
+
+                streamingCollection = new BlockingCollection<string>();
+
+                process.OutputDataReceived += (s, a) => streamingCollection.Add(a.Data);
+                process.ErrorDataReceived += (s, a) => streamingCollection.Add(a.Data);
+
+                streamingLoopTask = Task.Factory.StartNew(StreamingLoopHandler);
+            }
+            else
+            {
+                output = new StringBuilder();
+                process.OutputDataReceived += (s, a) => output.AppendLine(a.Data);
+                process.ErrorDataReceived += (s, a) => output.AppendLine(a.Data);
+
             }
 
-            output = new StringBuilder();
+            // always log output
+            process.OutputDataReceived += (s,a) => logger.Debug($"Job {this.jobId} std output: {a.Data}");
+            process.ErrorDataReceived += (s,a) => logger.Debug($"Job {this.jobId} std error: {a.Data}");
 
-            DataReceivedEventHandler outputHandler = (s, a) =>
-            {
-                logger.Debug($"Job {id} output: {a.Data}");
-
-                try{
-                    // try to log to the emergency stream first, because if it exists, 
-                    // that means we tried to stream and failed
-                    if (emergencyLogStream != null)
-                    {
-                        emergencyLogStream.WriteLine(a.Data);
-                    }
-                    // if there's no emergency stream, try to use the progress stream if it's there
-                    else if (progressStream != null)
-                    {
-                        progressStream.WriteLine(a.Data);
-                    }
-                    // if there's nothing else, use the internal buffer, because we weren't streaming
-                    else {
-                        output.AppendLine(a.Data);
-                    }
-                }
-                catch (SocketException)
-                {
-                    logger.Warn("Failed to stream progress from process - socket exception ocurred.");
-                    logger.Warn("Switching file log {0} instead.", emergencyLogFilename);
-
-                    // a write to a socket failed. switch to the emergency file log.
-                    emergencyLogStream = new StreamWriter(new FileStream(emergencyLogFilename, FileMode.Create));
-
-                    // write the data
-                    emergencyLogStream.WriteLine(a.Data);
-
-                    // close the socket and network stream
-                    progressStream.Close();
-                    progressClient.Close();
-                    progressStream = null;
-                    progressClient = null;
-                }
-            };
-
-            process.OutputDataReceived += outputHandler;
-            process.ErrorDataReceived += outputHandler;
-
-            // add a logging message when a job finishes and ensure that streams are closed (if present)
+            // add a logging message when a job finishes and ensure that streaming task stops if needed
             process.EnableRaisingEvents = true;
             process.Exited += (o, e) => logger.Info($"Job {id} finished executing.");
-            process.Exited += (o, e) => CloseStreams();
+            process.Exited += (o, e) => streamingCollection?.Add(null);
 
             if (callback != null)
             {
@@ -135,9 +98,46 @@ namespace SimpleDUTRemote.JobSystem
             process.BeginOutputReadLine();
         }
 
+        private void StreamingLoopHandler()
+        {
+            string nextLine;
+
+            while ((nextLine = streamingCollection.Take()) != null)
+            {
+                outputLogSteam.WriteLine(nextLine);
+
+                if (progressStream != null)
+                {
+                    try
+                    {
+                        progressStream.WriteLine(nextLine);
+                    }
+                    catch (IOException e)
+                    {
+                        if (!(e.InnerException is SocketException)) throw;
+
+                        logger.Error("Failed to stream progress from process - socket exception ocurred.");
+                        logger.Error("Logging will continue to the the file log.");
+                        progressStream = null;
+                        progressClient = null;
+                    }
+
+                }
+            }
+
+            CloseStreams();
+
+        }
+
         private void FireCompletionCallback()
         {
             logger.Debug("Attmpeting to send TCP completion message for job {0}", this.jobId);
+
+            // if the streaming system is active, don't send this until the streams have completed
+            if (streamingLoopTask != null && !streamingLoopTask.IsCompleted)
+            {
+                streamingLoopTask.Wait();
+            }
 
             using (var client = new TcpClient())
             {
@@ -169,7 +169,16 @@ namespace SimpleDUTRemote.JobSystem
             {
                 throw new InvalidOperationException("Process hasn't finished executing. Cannot get result.");
             }
-            return output.ToString();
+            return output != null ? output.ToString() : String.Empty;
+        }
+
+        public int GetExitCode()
+        {
+            if (!this.IsDone())
+            {
+                throw new InvalidOperationException("Process hasn't finished executing. Cannot get exit code.");
+            }
+            return process.ExitCode;
         }
 
         public void WaitForCompletion()
@@ -187,20 +196,84 @@ namespace SimpleDUTRemote.JobSystem
             Dispose();
         }
 
+        // either connect to the client and create a network stream, or create a filestream
+        // to the fallback log.
+        private bool CreateProgressStream(IPEndPoint streamEp)
+        {
+
+            bool connectionSuccessful = false;
+
+            // setup file streaming regardless of what happens on the network;
+            outputLogFilename = OUTPUT_LOG_BASENAME + DateTime.Now.ToString(OUTPUT_LOG_TIME_FORMAT) + ".txt";
+            outputLogFilename = Path.Combine(Path.GetTempPath(), outputLogFilename);
+            outputLogSteam = new StreamWriter(new FileStream(outputLogFilename, FileMode.Create));
+            logger.Info("Recording process output to: {0} .", outputLogFilename);
+
+            // make a note on the logfile what job this is and what was called.
+            outputLogSteam.WriteLine($"SimpleRemote Job {jobId} Output - {DateTime.Now:g}");
+            outputLogSteam.WriteLine($"{process.StartInfo.FileName} {process.StartInfo.Arguments}");
+            outputLogSteam.WriteLine();
+
+            progressClient = new TcpClient();
+            progressClient.SendTimeout = NETWORK_TIMEOUT_MS;
+
+            try
+            {
+                if (!progressClient.ConnectAsync(streamEp.Address, streamEp.Port).Wait(NETWORK_TIMEOUT_MS))
+                {
+                    // failed to connect due to timeout - log and proceed.
+                    connectionSuccessful = false;
+                    progressClient = null;
+                    logger.Error("Failed to initiate network streaming progress - connection to client timed out ");
+                    
+                }
+                else
+                {
+                    // connection successful
+                    progressStream = new StreamWriter(progressClient.GetStream());
+                    connectionSuccessful = true;
+                }
+            }
+            catch (Exception e)
+            {
+                if (e is SocketException || (e is AggregateException && e.InnerException is SocketException))
+                {
+                    connectionSuccessful = false;
+                    progressClient = null;
+                    logger.Error("Failed to initiate network streaming progress - got socket exception while connecting");
+                }
+                else throw;
+            }
+
+            return connectionSuccessful;
+        }
+
         private void CloseStreams()
         {
-            // if necessary, shutdown progress stream or emergency stream
-            if (progressStream != null)
+            try
             {
-                progressStream?.Close(); //closes network streams
-                progressClient?.Close(); //closes tcp client.
-                progressStream = null;
-                progressClient = null;
+                // if necessary, shutdown progress stream or emergency stream
+                if (progressStream != null)
+                {
+                    progressStream?.Close(); //closes network streams
+                    progressClient?.Close(); //closes tcp client.
+                    progressStream = null;
+                    progressClient = null;
+                }
             }
-            if (emergencyLogStream != null)
+            catch (IOException e)
             {
-                emergencyLogStream.Close(); //close file stream
-                emergencyLogStream = null;
+                if (!(e.InnerException is SocketException)) throw;
+                logger.Error("A SocketException occurred while closing progress socket streams.");
+
+            }
+            finally
+            {
+                if (outputLogSteam != null)
+                {
+                    outputLogSteam.Close(); //close file stream
+                    outputLogSteam = null;
+                }
             }
         }
 

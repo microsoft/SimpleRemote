@@ -189,12 +189,15 @@ namespace SimpleDUTRemote
         /// <remarks>
         /// Operates identically to StartJobWithNotification(), but every time the called process emits a line of output,
         /// the server will send the line of output via TCP to the port specified by `progressPort`. As with 
-        /// StartJobWithNotification(), a completion message will be sent to the callbackPort once the job finishes. You must maintain
-        /// a network connection during the process lifetime, otherwise the server will error. 
+        /// StartJobWithNotification(), a completion message will be sent to the callbackPort once the job finishes.
+        /// The process will also log all output to a file named SimpleRemote-JobOutput-[TIMESTAMP] in the TEMP directory.
+        /// This is to ensure that, even if the network fails, output will not be lost.
+        /// <br/><br/>
+        /// <b>Because this function creates network and disk activity, it should not be used in power testing.</b>
         /// <br/><br/>
         /// Note: When this function is used, the server will no longer store process output in memory. Calling GetJobResult() will
         /// result in an empty string. It is recommended you still call GetJobResult() to acknowledge to the server that you're 
-        /// done with the job, but any output should have been captured by the client.
+        /// done with the job, and ensure any resources associated with the job are properly cleaned.
         /// </remarks>
         /// <param name="callbackAddress">IP address of the client machine, if not specified will use data from this connection.</param>
         /// <param name="callbackPort">TCP port number on the client machine to connect to for the callback</param>
@@ -227,6 +230,11 @@ namespace SimpleDUTRemote
                 Port = (int) callbackPort,
                 ProgressPort = (int) progressPort
             };
+
+            if (callbackPort == 0 || progressPort == 0)
+            {
+                throw new ArgumentException("Both callbackPort and progressPort must be non-zero");
+            }
 
             Process p = SetupProcess(programName, args, true);
             var newJob = Job.CreateJob(p, info);
