@@ -334,6 +334,7 @@ namespace SimpleDUTRemote
             }
 
             tempJob.Kill();
+            tempJob.Dispose();
             return true;
         }
 
@@ -360,6 +361,7 @@ namespace SimpleDUTRemote
             }
 
             var result = tempJob.GetResult();
+            tempJob.Dispose();
             jobs.TryRemove(jobId, out tempJob);
             return result;
             

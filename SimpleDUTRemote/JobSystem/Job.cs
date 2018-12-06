@@ -27,7 +27,6 @@ namespace SimpleDUTRemote.JobSystem
         private StringBuilder output = null;
 
         // items for progress streaming (network)
-        private TcpClient progressClient;
         private StreamWriter progressStream;
         private const int NETWORK_TIMEOUT_MS = 5000;
         private Task streamingLoopTask;
@@ -38,6 +37,9 @@ namespace SimpleDUTRemote.JobSystem
         private const string OUTPUT_LOG_TIME_FORMAT = "yyyy-MM-dd_HH-mm-ss";
         private string outputLogFilename = null;
         private StreamWriter outputLogSteam = null;
+
+        // class-level lock object to ensure stream cleanup is threadsafe.
+        private object lockObj = new object();
 
         public static Job CreateJob(Process p, JobCallbackInfo callback = null)
         {
@@ -104,24 +106,24 @@ namespace SimpleDUTRemote.JobSystem
 
             while ((nextLine = streamingCollection.Take()) != null)
             {
-                outputLogSteam.WriteLine(nextLine);
-
-                if (progressStream != null)
+                try
                 {
-                    try
-                    {
-                        progressStream.WriteLine(nextLine);
-                    }
-                    catch (IOException e)
-                    {
-                        if (!(e.InnerException is SocketException)) throw;
+                    outputLogSteam.WriteLine(nextLine);
+                    progressStream?.WriteLine(nextLine);
+                }
+                catch (IOException e)
+                {
+                    if (!(e.InnerException is SocketException)) throw;
 
-                        logger.Error("Failed to stream progress from process - socket exception ocurred.");
-                        logger.Error("Logging will continue to the the file log.");
-                        progressStream = null;
-                        progressClient = null;
-                    }
-
+                    logger.Error("Failed to stream progress from process - socket exception ocurred.");
+                    logger.Error("Logging will continue to the the file log.");
+                    progressStream.Dispose();
+                    progressStream = null;
+                }
+                catch (ObjectDisposedException)
+                {
+                    logger.Debug("Stream object was disposed while streaming output - this likely means this job was terminated.");
+                    return; // break out of the function if this happens. 
                 }
             }
 
@@ -193,11 +195,10 @@ namespace SimpleDUTRemote.JobSystem
         {
             logger.Info("Terminating job id: {0}", jobId);
             process.Kill();
-            Dispose();
         }
 
-        // either connect to the client and create a network stream, or create a filestream
-        // to the fallback log.
+        // connect to the client and create a network stream and create a filestream
+        // to the file log.
         private bool CreateProgressStream(IPEndPoint streamEp)
         {
 
@@ -214,7 +215,7 @@ namespace SimpleDUTRemote.JobSystem
             outputLogSteam.WriteLine($"{process.StartInfo.FileName} {process.StartInfo.Arguments}");
             outputLogSteam.WriteLine();
 
-            progressClient = new TcpClient();
+            var progressClient = new TcpClient();
             progressClient.SendTimeout = NETWORK_TIMEOUT_MS;
 
             try
@@ -223,7 +224,6 @@ namespace SimpleDUTRemote.JobSystem
                 {
                     // failed to connect due to timeout - log and proceed.
                     connectionSuccessful = false;
-                    progressClient = null;
                     logger.Error("Failed to initiate network streaming progress - connection to client timed out ");
                     
                 }
@@ -239,7 +239,6 @@ namespace SimpleDUTRemote.JobSystem
                 if (e is SocketException || (e is AggregateException && e.InnerException is SocketException))
                 {
                     connectionSuccessful = false;
-                    progressClient = null;
                     logger.Error("Failed to initiate network streaming progress - got socket exception while connecting");
                 }
                 else throw;
@@ -250,29 +249,31 @@ namespace SimpleDUTRemote.JobSystem
 
         private void CloseStreams()
         {
-            try
+            // ensure cleanup is threadsafe
+            lock (lockObj)
             {
-                // if necessary, shutdown progress stream or emergency stream
-                if (progressStream != null)
+                try
                 {
-                    progressStream?.Close(); //closes network streams
-                    progressClient?.Close(); //closes tcp client.
-                    progressStream = null;
-                    progressClient = null;
+                    // if necessary, shutdown network progress stream
+                    if (progressStream != null)
+                    {
+                        progressStream.Close(); //closes network streams
+                        progressStream = null;
+                    }
                 }
-            }
-            catch (IOException e)
-            {
-                if (!(e.InnerException is SocketException)) throw;
-                logger.Error("A SocketException occurred while closing progress socket streams.");
-
-            }
-            finally
-            {
-                if (outputLogSteam != null)
+                catch (IOException e)
                 {
-                    outputLogSteam.Close(); //close file stream
-                    outputLogSteam = null;
+                    if (!(e.InnerException is SocketException)) throw;
+                    logger.Error("A SocketException occurred while closing progress socket streams.");
+
+                }
+                finally
+                {
+                    if (outputLogSteam != null)
+                    {
+                        outputLogSteam.Close(); //close file stream
+                        outputLogSteam = null;
+                    }
                 }
             }
         }

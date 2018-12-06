@@ -14,6 +14,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using SimpleJsonRpc;
 
 namespace DUTRemoteTests
@@ -160,6 +161,60 @@ namespace DUTRemoteTests
 
             var fileText = File.ReadAllText(file);
             Assert.IsTrue(fileText.Contains("OS Name:"), "Missing expected text from progress file.");
+            Assert.IsTrue(fileText.Contains("systeminfo.exe"), "Missing called process name from progress file.");
+        }
+
+        [TestMethod]
+        public void Job_CheckStreamingProgress_KillProcess()
+        {
+            var old_files = Directory.GetFiles(Path.GetTempPath()).Where((x) => x.Contains("SimpleRemote-JobOutput-"));
+            old_files.ToList().ForEach(x => File.Delete(x));
+
+            var self = IPAddress.Loopback;
+            var completionPort = 0;
+            var progressPort = 0;
+            string receivedMessage = null;
+
+            // completion server items
+            var completionServer = new TcpListener(self, completionPort);
+            completionServer.Start(1);
+            completionPort = ((IPEndPoint)completionServer.Server.LocalEndPoint).Port;
+            var completionClient = completionServer.AcceptTcpClientAsync();
+
+            // progress server items
+            var progressServer = new TcpListener(self, progressPort);
+            progressServer.Start(1);
+            progressPort = ((IPEndPoint)progressServer.Server.LocalEndPoint).Port;
+            var progressClient = progressServer.AcceptTcpClientAsync();
+
+            // start streaming job
+            var id = remoteFunctions.StartJobWithProgress(self.ToString(), completionPort, progressPort, "systeminfo.exe");
+            // wait 500ms and kill it
+            Thread.Sleep(500);
+            remoteFunctions.StopJob(id);
+
+            // we should still get a completion callback (the process will die)
+
+            if (!completionClient.Wait(5 * 1000))
+            {
+                completionServer.Stop();
+                progressServer.Stop();
+                Assert.Fail("Missing completion callback.");
+            }
+
+            // clean all sockets.
+            progressClient.Result.Dispose();
+            completionClient.Result.Dispose();
+
+            progressServer.Stop();
+            completionServer.Stop();
+
+            // confirm there's a log file.
+            var files = Directory.GetFiles(Path.GetTempPath()).Where((x) => x.Contains("SimpleRemote-JobOutput-"));
+            Assert.IsTrue(files.Count() == 1, "Incorrect number of fallback logs found.");
+            var file = files.First();
+
+            var fileText = File.ReadAllText(file);
             Assert.IsTrue(fileText.Contains("systeminfo.exe"), "Missing called process name from progress file.");
         }
 
