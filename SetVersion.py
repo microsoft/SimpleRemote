@@ -6,7 +6,7 @@
 import os, os.path, re, sys
 
 # extensions to process
-EXTENSIONS = [".csproj", ".inno"]
+EXTENSIONS = [".csproj", ".iss"]
 
 def main():
     targetVer = sys.argv[1]
@@ -38,7 +38,7 @@ def ModifyCsprojFiles(fileList, targetVersion):
             fileData = re.sub(r"<Version>(.*?)</Version>", 
                 "<Version>{0}</Version>".format(targetVersion), fileData)
             fileData = re.sub(r"<VersionPrefix>(.*?)</VersionPrefix>", 
-                "<VersionPrefix>{0}</VersionPrefix>".format(_GetVersionPrefix(targetVersion)), fileData)
+                "<VersionPrefix>{0}</VersionPrefix>".format(targetVersion), fileData)
             f.write(fileData)
 
 def ModifyIssFiles(fileList, targetVersion):
@@ -48,7 +48,7 @@ def ModifyIssFiles(fileList, targetVersion):
         with open(issFile, "rb+") as f:
             fileData = f.read()
             f.seek(0)
-            fileData = re.sub(r"(#define MyAppVersion ).*", 
+            fileData = re.sub(r"(#define MyAppVersion).*", 
                 r'\1 "{0}"'.format(targetVersion),
                 fileData)
             f.write(fileData)

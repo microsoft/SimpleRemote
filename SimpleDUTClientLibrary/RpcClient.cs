@@ -190,6 +190,84 @@ namespace SimpleDUTClientLibrary
         }
 
         /// <summary>
+        /// Start job, and stream standard out from the called process to the client.
+        /// </summary>
+        /// <remarks>You should call GetJobResult() on the completed job, even though there will be no output, to acknowledge
+        /// to the server that you're done with the job and to release resources associated with it on the server.
+        /// <br/><br/>
+        /// Because this will result in both network and disk activity on the server, it is not recommended
+        /// for use while performing power sensitive measurements.
+        /// </remarks>
+        /// <param name="command">Path to command to run (bat/exe/ps1).</param>
+        /// <param name="args">Arguments to pass to the command (use null or empty string for no args).</param>
+        /// <param name="progressCallback">Callback to run whenever the called process emits a line of text. Emitted text will be an argument for the function.</param>
+        /// <param name="completionCallback">Callback to run once job completes - the completed job number will be provided as a argument to the function.</param>
+        /// <param name="localIP">Local IP address to use for inbound notification. If null, will let server determine this machine's address.</param>
+        /// <returns>Job id for the newly created job.</returns>
+        public int StartJobWithProgress(string command, string args, Action<string> progressCallback, Action<int> completionCallback, IPAddress localIP = null)
+        {
+            // setup completion listener first
+            TcpListener completionListener = new TcpListener(IPAddress.Any, 0);
+            completionListener.Start(1);
+            var localCompletionPort = ((IPEndPoint)completionListener.LocalEndpoint).Port;
+
+            // this task will be fired when the server connects back to the client.
+            completionListener.AcceptTcpClientAsync().ContinueWith((t) =>
+            {
+                try
+                {
+                    var client = t.Result;
+                    string msg;
+
+                    using (client)
+                    using (StreamReader cbReader = new StreamReader(client.GetStream()))
+                    {
+                        msg = cbReader.ReadToEnd();
+                    }
+
+                    // we know the message is "JOB X COMPLETED" so just split on space, and parse the middle.
+                    int jobNumber = int.Parse(msg.Split(' ')[1]);
+                    completionCallback?.Invoke(jobNumber);
+                }
+                finally
+                {
+                    // always close the listener - we no longer need it. 
+                    completionListener.Stop();
+                }
+            });
+
+            // setup progress listener next
+            TcpListener progressListener = new TcpListener(IPAddress.Any, 0);
+            progressListener.Start(1);
+            var localProgressPort = ((IPEndPoint)progressListener.LocalEndpoint).Port;
+
+            progressListener.AcceptTcpClientAsync().ContinueWith((t) => 
+            {
+                try
+                {
+                    var client = t.Result;
+                    string msg;
+
+                    using (client)
+                    using (StreamReader progressReader = new StreamReader(client.GetStream()))
+                    {
+                        while ((msg = progressReader.ReadLine()) != null)
+                        {
+                            progressCallback?.Invoke(msg);
+                        }
+                    }
+                }
+                finally
+                {
+                    progressListener.Stop();
+                }
+            });
+
+            var methodArgs = new object[] { localIP, localCompletionPort, localProgressPort, command, args };
+            return CallRpc<int>("StartJobWithProgress", methodArgs);
+        }
+
+        /// <summary>
         /// Determine if a job has finished executing.
         /// </summary>
         /// <param name="jobId">Job id provided by StartJob()</param>
@@ -378,6 +456,27 @@ namespace SimpleDUTClientLibrary
         }
 
         /// <summary>
+        /// Get a heartbeat from the server.
+        /// </summary>
+        /// <remarks>Returns true if the server responded to the heartbeat command. Throws otherwise.</remarks>
+        public bool GetHeartbeat()
+        {
+            return CallRpc<bool>("GetHeartbeat");
+        }
+
+        /// <summary>
+        /// Return if the server process is running as an Administrator.
+        /// </summary>
+        /// <remarks>This function only works if the server is running on a Windows system. It
+        /// will throw a PlatformNotSupportedException if the server is running on Linux or MacOS.
+        /// </remarks>
+        /// <returns>True if server is running as an administrator. False otherwise.</returns>
+        public bool GetIsRunningAsAdmin()
+        {
+            return CallRpc<bool>("GetIsRunningAsAdmin");
+        }
+
+        /// <summary>
         /// Load a plugin on the server.
         /// </summary>
         /// <remarks>Load a class from a .NET (or .NET Core) DLL on the remote server. This allows you
@@ -440,14 +539,30 @@ namespace SimpleDUTClientLibrary
         /// <param name="broadcastPort">Port to use for the UDP broadcast.</param>
         /// <param name="broadcastAddress">IP Address to use for the broadcast. Defaults to 255.255.255.255</param>
         /// <param name="timeToWait">Time to wait for all responses before returning (in milliseconds)</param>
+        /// <param name="localAdapterAddress">IP Address of the local adapter to use for the broadcast. Only needed if
+        /// you have multiple active network adapters on the system.</param>
         /// <returns>An array of IPEndPoints, one for each SimpleRemote server.</returns>
-        public static IPEndPoint[] GetAllServersOnSubnet(int broadcastPort = 8001, IPAddress broadcastAddress = null, int timeToWait = 5000)
+        public static IPEndPoint[] GetAllServersOnSubnet(int broadcastPort = 8001, IPAddress broadcastAddress = null, 
+            int timeToWait = 5000, IPAddress localAdapterAddress = null)
         {
+            UdpClient client;
             var servers = new HashSet<IPEndPoint>();
 
             broadcastAddress = broadcastAddress ?? IPAddress.Broadcast;
             var broadcastEndpoint = new IPEndPoint(broadcastAddress, broadcastPort);
-            var client = new UdpClient(0); // auto assign port
+
+            // setup the client using an automatically set port. 
+            // bind to a specific adapter if needed. 
+            if (localAdapterAddress != null)
+            {
+                var localEp = new IPEndPoint(localAdapterAddress, 0);
+                client = new UdpClient(localEp);
+            }
+            else
+            {
+                client = new UdpClient(0);
+            }
+
             client.EnableBroadcast = true;
 
             // setup a thread to handle receive operations

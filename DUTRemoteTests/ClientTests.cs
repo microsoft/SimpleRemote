@@ -14,6 +14,7 @@ using System.Threading;
 using System.IO;
 using System.Net.Sockets;
 using SimpleJsonRpc;
+using System.Security.Principal;
 
 namespace DUTRemoteTests
 {
@@ -138,6 +139,39 @@ namespace DUTRemoteTests
             string result = client.GetJobResult(completedJob);
             Assert.IsTrue(result.Length > 0);
             Assert.IsTrue(result.Contains("OS Name:"), "Result doesn't contain expected items.");
+        }
+
+        [TestMethod]
+        public void Client_StartJobWithProgress_CheckJobOutput()
+        {
+            AutoResetEvent evt = new AutoResetEvent(false);
+            int completedJob = -1;
+            var completedMsgs = new List<string>();
+
+            Action<int> cb = (jobid) =>
+            {
+                completedJob = jobid;
+                evt.Set();
+            };
+
+            Action<string> progressEvent = (msg) => completedMsgs.Add(msg);
+
+            int newJobId = client.StartJobWithProgress("systeminfo.exe", null, progressEvent, cb);
+
+            Assert.IsTrue(newJobId > 0);
+
+            Assert.IsTrue(evt.WaitOne(5000), "Callback took too long to be received.");
+            Assert.IsTrue(completedJob == newJobId);
+
+            Assert.IsTrue(client.CheckJobCompletion(completedJob), "Job declared complete does not appear to be complete on server.");
+
+            string result = client.GetJobResult(completedJob);
+            Assert.IsTrue(result.Length == 0, "Result was greater than zero, even though we used StartJobWithProgress");
+            
+            Assert.IsTrue(completedMsgs.Count() > 0, "Did not receive any progress messages.");
+            var OSNameMsg = completedMsgs.Where((x) => x.StartsWith("OS Name:"));
+            Assert.IsTrue(OSNameMsg.Count() > 0, "Did not receive a message with OS Name");
+
         }
 
         [TestMethod]
@@ -435,6 +469,13 @@ namespace DUTRemoteTests
         }
 
         [TestMethod]
+        public void Client_GetHeartbeat()
+        {
+            var res = client.GetHeartbeat();
+            Assert.IsTrue(res, "Heartbeat failed to return true.");
+        }
+
+        [TestMethod]
         public void Client_GetVersionUsingHostname()
         {
             RpcClient myclient = new RpcClient("localhost", 8000);
@@ -591,6 +632,13 @@ namespace DUTRemoteTests
         {
             var ex = Assert.ThrowsException<Exception>(() => client.PluginLoad("testId", "PluginExample.SimpleTest", "Not_A_Path.dll"));
             Assert.IsTrue(ex.Message.Contains("IOException"), "The exception from the server didn't have the expected IOException in the message.");
+        }
+
+        [TestMethod]
+        public void Client_IsServerRunningAsAdmin()
+        {
+            var isTestRunningAsAdmin = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+            Assert.AreEqual(isTestRunningAsAdmin, client.GetIsRunningAsAdmin(), "Server did not return a correct response for if it was running as admin.");
         }
 
 

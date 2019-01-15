@@ -15,6 +15,8 @@ using System.Net;
 using SimpleDUTRemote.JobSystem;
 using System.Threading.Tasks;
 using SimpleJsonRpc;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
 
 namespace SimpleDUTRemote
 {
@@ -102,6 +104,52 @@ namespace SimpleDUTRemote
 
             return output.ToString();
         }
+
+        /// <summary>
+        /// Start an exe, bat, or ps1 file on the remote machine; block and return exit code and result when complete.
+        /// </summary>
+        /// <remarks>
+        /// Runs an exe, bat, or powershell script on the remote machine, capturing output from the process. 
+        /// This function will block until the item finishes, and should be used with caution for items that will 
+        /// take an extended amount of time to run, as waiting on a long-running process may trigger a timeout
+        /// exception on your client (depending on your client's socket settings). 
+        /// If you need to start a long-running task, consider using StartJob() instead.
+        /// <br/><br/>Some networking devices may automatically disconnect TCP connections that are
+        /// idle for extended periods. Enabling TCP keep alive packets on your client may help,
+        /// at the expense of additional power consumption on the server. 
+        /// </remarks>
+        /// <param name="programName">Name of called program (exe/bat/ps1).</param>
+        /// <param name="args">Arguments for the called program.</param>
+        /// <returns>Array of strings containing the exit code, and merged standard output and error from called process.</returns>
+        [SimpleRpcMethod]
+        public static string[] RunWithResultAndExitCode(string programName, string args = null)
+        {
+            StringBuilder output = new StringBuilder();
+            string exitCode;
+            using (Process p = SetupProcess(programName, args, true))
+            {
+                DataReceivedEventHandler outputHandler = (s, a) =>
+                {
+                    logger.Debug($"{programName} output: {a.Data}");
+                    output.AppendLine(a.Data);
+                };
+                p.OutputDataReceived += outputHandler;
+                p.ErrorDataReceived += outputHandler;
+
+                logger.Info("Starting program...");
+                p.Start();
+
+                p.BeginErrorReadLine();
+                p.BeginOutputReadLine();
+
+                logger.Info("Waiting for called program to complete...");
+                p.WaitForExit();
+                logger.Info($"Process {p.StartInfo.FileName} has completed.");
+                exitCode = p.ExitCode.ToString();
+            }
+
+            return new string[] {exitCode, output.ToString()};
+        }
         #endregion
 
         #region Job Functions (Non-Blocking, Callbacks)
@@ -170,8 +218,69 @@ namespace SimpleDUTRemote
             JobCallbackInfo info = new JobCallbackInfo()
             {
                 Address = callbackIp,
-                Port = (int) callbackPort
+                Port = (int) callbackPort,
+                ProgressPort = -1
             };
+
+            Process p = SetupProcess(programName, args, true);
+            var newJob = Job.CreateJob(p, info);
+            jobs[newJob.jobId] = newJob;
+
+            return newJob.jobId;
+        }
+
+        /// <summary>
+        /// Start a job on a remote machine, sends progress messages, and a completion message.
+        /// </summary>
+        /// <remarks>
+        /// Operates identically to StartJobWithNotification(), but every time the called process emits a line of output,
+        /// the server will send the line of output via TCP to the port specified by `progressPort`. As with 
+        /// StartJobWithNotification(), a completion message will be sent to the callbackPort once the job finishes.
+        /// The process will also log all output to a file named SimpleRemote-JobOutput-[TIMESTAMP] in the TEMP directory.
+        /// This is to ensure that, even if the network fails, output will not be lost.
+        /// <br/><br/>
+        /// <b>Because this function creates network and disk activity, it should not be used in power testing.</b>
+        /// <br/><br/>
+        /// Note: When this function is used, the server will no longer store process output in memory. Calling GetJobResult() will
+        /// result in an empty string. It is recommended you still call GetJobResult() to acknowledge to the server that you're 
+        /// done with the job, and ensure any resources associated with the job are properly cleaned.
+        /// </remarks>
+        /// <param name="callbackAddress">IP address of the client machine, if not specified will use data from this connection.</param>
+        /// <param name="callbackPort">TCP port number on the client machine to connect to for the callback</param>
+        /// <param name="progressPort">TCP port number on the client machine to send progress.</param>
+        /// <param name="programName">Name of called program (exe/bat/ps1).</param>
+        /// <param name="args">Arguments for the called program.</param>
+        /// <returns>Job id of the newly generated job.</returns>
+        [SimpleRpcMethod]
+        public int StartJobWithProgress(string callbackAddress, long callbackPort, long progressPort, 
+            string programName, string args = null)
+        {
+            IPAddress callbackIp;
+
+            if (String.IsNullOrWhiteSpace(callbackAddress))
+            {
+                if (SimpleRpcServer.currentClient == null || SimpleRpcServer.currentClient.Value == null)
+                {
+                    throw new InvalidOperationException("No callback IP provided, and unable to get current connection data.");
+                }
+                callbackIp = SimpleRpcServer.currentClient.Value.Address;
+            }
+            else
+            {
+                callbackIp = IPAddress.Parse(callbackAddress);
+            }
+
+            JobCallbackInfo info = new JobCallbackInfo()
+            {
+                Address = callbackIp,
+                Port = (int) callbackPort,
+                ProgressPort = (int) progressPort
+            };
+
+            if (callbackPort == 0 || progressPort == 0)
+            {
+                throw new ArgumentException("Both callbackPort and progressPort must be non-zero");
+            }
 
             Process p = SetupProcess(programName, args, true);
             var newJob = Job.CreateJob(p, info);
@@ -225,6 +334,7 @@ namespace SimpleDUTRemote
             }
 
             tempJob.Kill();
+            tempJob.Dispose();
             return true;
         }
 
@@ -251,6 +361,7 @@ namespace SimpleDUTRemote
             }
 
             var result = tempJob.GetResult();
+            tempJob.Dispose();
             jobs.TryRemove(jobId, out tempJob);
             return result;
             
@@ -367,7 +478,21 @@ namespace SimpleDUTRemote
         [SimpleRpcMethod]
         public static int Upload(string path, bool overwrite, long port = 0)
         {
-            if (!ReadWriteChecks.CheckWriteToDir(Directory.GetParent(path).FullName))
+            // if the path to receive the file doesn't exist, try to create it.
+            if (!Directory.Exists(path))
+            {
+                try {
+                    Directory.CreateDirectory(path);
+                }
+                catch (Exception)
+                {
+                    throw new IOException($"Can't create receive directory {path}. " +
+                    "There was either a permission problem, or the path is invalid."
+                    );
+                }
+            }
+
+            if (!ReadWriteChecks.CheckWriteToDir(path))
             {
                 throw new IOException($"Can't write to {path}, there was either a permission problem or the path doesn't exist.");
             }
@@ -485,6 +610,25 @@ namespace SimpleDUTRemote
             return SimpleRpcServer.currentClient.Value.ToString();
         }
 
+        /// <summary>
+        /// Return if the current process is running as an Administrator.
+        /// </summary>
+        /// <remarks>This function only works on Windows. It will throw PlatformNotSupportedException
+        /// on MacOS and Linux.
+        /// </remarks> 
+        /// <returns>True if this process is running as an administrator. False otherwise.</returns>
+        [SimpleRpcMethod]
+        public static bool GetIsRunningAsAdmin()
+        {
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                throw new PlatformNotSupportedException("This function is only supported on Windows OS at this time.");
+            }
+
+            var identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
         #endregion
 
         #region Extension System
@@ -577,7 +721,7 @@ namespace SimpleDUTRemote
             { 
                 p.StartInfo.FileName = "powershell.exe";
                 p.StartInfo.Arguments = $"-executionpolicy unrestricted -file \"{command}\"";
-                p.StartInfo.Arguments += args;
+                p.StartInfo.Arguments += string.IsNullOrWhiteSpace(args) ? "" : " " + args;
             }
 
             // if we're using exe/bat/cmd/other, execute directly

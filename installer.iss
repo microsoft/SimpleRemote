@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Simple Remote Server"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "Microsoft Surface"
 #define MyAppURL "surface.com"
 #define MyAppExeName "SimpleRemoteConsole.exe"
