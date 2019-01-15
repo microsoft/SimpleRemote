@@ -469,6 +469,13 @@ namespace DUTRemoteTests
         }
 
         [TestMethod]
+        public void Client_GetHeartbeat()
+        {
+            var res = client.GetHeartbeat();
+            Assert.IsTrue(res, "Heartbeat failed to return true.");
+        }
+
+        [TestMethod]
         public void Client_GetVersionUsingHostname()
         {
             RpcClient myclient = new RpcClient("localhost", 8000);

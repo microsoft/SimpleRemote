@@ -456,6 +456,15 @@ namespace SimpleDUTClientLibrary
         }
 
         /// <summary>
+        /// Get a heartbeat from the server.
+        /// </summary>
+        /// <remarks>Returns true if the server responded to the heartbeat command. Throws otherwise.</remarks>
+        public bool GetHeartbeat()
+        {
+            return CallRpc<bool>("GetHeartbeat");
+        }
+
+        /// <summary>
         /// Return if the server process is running as an Administrator.
         /// </summary>
         /// <remarks>This function only works if the server is running on a Windows system. It
