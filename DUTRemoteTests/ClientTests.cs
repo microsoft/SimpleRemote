@@ -223,10 +223,10 @@ namespace DUTRemoteTests
         }
 
         [TestMethod]
-        public void Client_UploadFile()
+        public void Client_Upload_UseFile_UseRelativeSendPath()
         {
             // determine file paths
-            var fileToSend = Path.GetTempPath() + "sampleFileToSend";
+            var fileToSend = "sampleFileToSend";
             var dirToRecv = Path.Combine(Path.GetTempPath(), "sampleRecvDir");
             var fileToRecv = Path.Combine(dirToRecv, "sampleFileToSend");
 
