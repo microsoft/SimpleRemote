@@ -2,8 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using System.IO;
 using ICSharpCode.SharpZipLib.Tar;
 
@@ -39,6 +38,17 @@ namespace SimpleDUTCommonLibrary
                 rootPath = Path.GetDirectoryName(targetPath);
                 fileList = new string[] { targetPath };
             }
+
+            // work around for SharpZipLib issue #334
+            // https://github.com/icsharpcode/SharpZipLib/issues/334
+            // this happens if relative paths were used.
+            if (rootPath == String.Empty)
+            {
+                rootPath = "./";
+                fileList = fileList.Select((x) => "./" + x).ToArray();
+
+            }
+            //rootPath = Path.GetFullPath(targetPath);
 
             // see SharpZipLib GitHub Wiki for details. Short version is the root
             // path must use forward slashes, and not end with a slash.

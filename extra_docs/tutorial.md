@@ -26,7 +26,7 @@ in PowerShell to show how easy it is.
 *Warning for Nuget users: SimpleRemote's nuget packages require the PackageReference format, and will not work correctly if you're using the packages.config format (the default method for managing packges for .NET Framework projects). Please review the [article here](https://blog.nuget.org/20170316/NuGet-now-fully-integrated-into-MSBuild.html) for information on how to switch a project to use PackageReference format (see the section under 'What about other project types that are not .NET Core?').*
 
 Before we begin, we'll need to give PowerShell information about our RpcClient class. To do that,
-navigate to the directory containing the SimpleDUTClientLibrary DLL, and open a PowerShell instance. Then call:
+navigate to the directory containing the %SimpleDUTClientLibrary DLL, and open a PowerShell instance. Then call:
 
     Add-Type -Path SimpleDUTClientLibrary.dll
 
@@ -50,6 +50,8 @@ To run a command and get output, you would use the [RunJob](@ref SimpleDUTClient
 
     $client.RunJob("systeminfo.exe")
 
+Note that any returned standard out/standard error will have new line characters at the end of the returned string, as it would on the remote machine (this is something to be aware of if you plan on comparing the output to a known value).
+
 ## Getting More Information on the Server ##
 The server uses NLog to provide information back to the user. By default, the logger will only write messages
 to the terminal, and only show messages at level `Info` or higher. If you want to see more detailed information
@@ -60,8 +62,8 @@ of a called processes as it is generated.
 Nlog can also be configured to write to files, the Windows event log, and a number of other locations. To see more
 information on how to configure logging, see the [NLog Tutorial](https://github.com/NLog/NLog/wiki/Tutorial#configuration).
 
-## Running as a Service##
-You can install SimpleRemote as a service on any Windows system. Simple launch the SimpleRemoteConsole exe from an elevated command prompt, and include the arg `--install-service`, as well as any other flags you wish to use (such as specifying the port). By default, the service will not start automatically, unless you specify `--service-start-type auto` when installing the service.
+## Running as a Service ##
+You can install SimpleRemote as a service on any Windows system. Simple launch the %SimpleRemoteConsole exe from an elevated command prompt, and include the arg `--install-service`, as well as any other flags you wish to use (such as specifying the port). By default, the service will not start automatically, unless you specify `--service-start-type auto` when installing the service.
 
 The service can be removed from the system my running `--uninstall-service` from an elevated command prompt. 
 
