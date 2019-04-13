@@ -39,30 +39,41 @@ namespace SimpleDUTCommonLibrary
                 fileList = new string[] { targetPath };
             }
 
-            // work around for SharpZipLib issue #334
-            // https://github.com/icsharpcode/SharpZipLib/issues/334
-            // this happens if relative paths were used.
-            if (rootPath == String.Empty)
-            {
-                rootPath = "./";
-                fileList = fileList.Select((x) => "./" + x).ToArray();
-
-            }
-            //rootPath = Path.GetFullPath(targetPath);
-
-            // see SharpZipLib GitHub Wiki for details. Short version is the root
-            // path must use forward slashes, and not end with a slash.
-            tar.RootPath = rootPath.Replace('\\', '/');
-            if (tar.RootPath.EndsWith("/"))
-            {
-                // remove the trailing slash
-                tar.RootPath = tar.RootPath.Remove(tar.RootPath.Length - 1);
-            }
-           
-
             foreach (var entry in fileList)
             {
                 var tarEntry = TarEntry.CreateEntryFromFile(entry);
+
+                // Work around for icsharpcode/SharpZipLib issues #334, #337, #338
+                // This manually rebuilds the tar header entry name
+                var newEntryName = entry;
+
+                // remove the root path, if present and not an empty string, from the entry path
+                if (!string.IsNullOrEmpty(rootPath) && newEntryName.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    newEntryName = newEntryName.Substring(rootPath.Length + 1);
+                }
+
+                // in the event this was a unc path name (started with \\),
+                // remove leading '\' entries.
+                while (newEntryName.StartsWith(@"\", StringComparison.Ordinal))
+                {
+                    newEntryName = newEntryName.Substring(1);
+                }
+
+                // switch all back slashes to forwrd slashes
+                newEntryName = newEntryName.Replace(Path.DirectorySeparatorChar, '/');
+
+                // if this is a directory, it should have a trailing slash.
+                if (File.GetAttributes(entry).HasFlag(FileAttributes.Directory))
+                {
+                    newEntryName += '/';
+                }
+
+                // rewrite the header block name
+                tarEntry.TarHeader.Name = newEntryName;
+
+                // end work around for icsharpcode/SharpZipLib.
+
                 tar.WriteEntry(tarEntry, false);
 
                 // if it's a file, count it's size
