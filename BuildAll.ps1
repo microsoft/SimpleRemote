@@ -28,7 +28,8 @@ dotnet pack -o $OUTDIR/nuget -c Release | Out-Null
 # build the client
 echo "Building client library..."
 cd $BASEDIR\SimpleDUTClientLibrary
-dotnet publish -o $OUTDIR/SimpleRemoteClient --version-suffix $VER_SUFFIX -f net46 -r win10-x64 -c Release | Out-Null
+dotnet publish -o $OUTDIR/SimpleRemoteClient-x64 --version-suffix $VER_SUFFIX -f net46 -r win10-x64 -c Release | Out-Null
+dotnet publish -o $OUTDIR/SimpleRemoteClient-x86 --version-suffix $VER_SUFFIX -f net46 -r win10-x86 -c Release | Out-Null
 dotnet pack -o $OUTDIR/nuget -c Release | Out-Null
 
 
