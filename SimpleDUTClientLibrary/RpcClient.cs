@@ -30,6 +30,15 @@ namespace SimpleDUTClientLibrary
         private int serverPort;
         private int timeout;
 
+        /// <summary> Get the server's endpoint information for this client instance. </summary>
+        public IPEndPoint ServerEndpoint
+        {
+            get
+            {
+                return new IPEndPoint(serverAddress, serverPort);
+            }
+        }
+
         private AssemblyRedirectResolver resolver;
 
         /// <summary>
