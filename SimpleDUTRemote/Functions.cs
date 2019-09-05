@@ -80,7 +80,7 @@ namespace SimpleDUTRemote
         [SimpleRpcMethod]
         public static string RunWithResult(string programName, string args = null)
         {
-            StringBuilder output = new StringBuilder();
+            var output = new HelperFunctions.ThreadSafeStringBuilder();
             using (Process p = SetupProcess(programName, args, true))
             {
                 DataReceivedEventHandler outputHandler = (s, a) =>
@@ -124,7 +124,7 @@ namespace SimpleDUTRemote
         [SimpleRpcMethod]
         public static string[] RunWithResultAndExitCode(string programName, string args = null)
         {
-            StringBuilder output = new StringBuilder();
+            var output = new HelperFunctions.ThreadSafeStringBuilder();
             string exitCode;
             using (Process p = SetupProcess(programName, args, true))
             {

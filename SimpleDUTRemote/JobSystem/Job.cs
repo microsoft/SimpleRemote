@@ -24,7 +24,7 @@ namespace SimpleDUTRemote.JobSystem
         private static int nextJobId = 0;
 
         // used to capture non-streaming output in memory
-        private StringBuilder output = null;
+        private HelperFunctions.ThreadSafeStringBuilder output = null;
 
         // items for progress streaming (network)
         private StreamWriter progressStream;
@@ -68,7 +68,7 @@ namespace SimpleDUTRemote.JobSystem
             }
             else
             {
-                output = new StringBuilder();
+                output = new HelperFunctions.ThreadSafeStringBuilder();
                 process.OutputDataReceived += (s, a) => output.AppendLine(a.Data);
                 process.ErrorDataReceived += (s, a) => output.AppendLine(a.Data);
 
