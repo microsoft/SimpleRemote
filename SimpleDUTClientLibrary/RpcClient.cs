@@ -140,6 +140,32 @@ namespace SimpleDUTClientLibrary
         }
 
         /// <summary>
+        /// Runs a job on the remote machine without blocking, and return a json object with results.
+        /// </summary>
+        /// <remarks>This command is similar to RunJobAsync(), but returns a task containing a json string
+        /// instead of a string with the Job's output. The json string is the output of the server 
+        /// SimpleDUTRemote.Functions.GetJobResultEx() function, which contains both the output from
+        /// the called process, as well as additional information, such as the exit code.
+        /// </remarks>
+        /// <param name="command">Path to command to run (bat/exe/ps1).</param>
+        /// <param name="args">Arguments to pass to the command.</param>
+        /// <param name="pollingInterval">Polling frequency in seconds, or 0 to only rely on callbacks.</param>
+        /// <param name="timeout">Time in seconds before throwing a TimeoutException, or 0 for no timeout.</param>
+        /// <param name="pollingDelay">Delay until polling begins, or 0 to begin polling immediately.
+        /// Ignored if the polling interval is 0.</param>
+        /// <param name="cancellationToken">Optional cancellation token for the task. Can be used to cancel the job.</param>
+        /// <returns>Task, populated with result of GetJobResultEx() on completion.</returns>
+        public Task<string> RunJobAsyncEx(string command, string args = null,
+                                                     int pollingInterval = 60,
+                                                     int timeout = 0,
+                                                     int pollingDelay = 60,
+                                                     CancellationToken? cancellationToken = null)
+        {
+            return _RunJob(command, args, pollingInterval, timeout, pollingDelay, cancellationToken,
+                returnExObject: true);
+        }
+
+        /// <summary>
         /// Start a job on the remote system.
         /// </summary>
         /// <remarks>Starts a program on the remote system, and returns a job id,
@@ -305,6 +331,17 @@ namespace SimpleDUTClientLibrary
         public string GetJobResult(int jobId)
         {
             return CallRpc<string>("GetJobResult", new object[] { jobId });
+        }
+
+        /// <summary>
+        /// Get the output and additional information from a completed job.
+        /// </summary>
+        /// <param name="jobId">Job id provided by StartJob()</param>
+        /// <returns>Json object containing job output and additional information. See
+        /// SimpleDUTRemote.Functions.GetJobResultEx() for more information.</returns>
+        public string GetJobResultEx(int jobId)
+        {
+            return CallRpc<string>("GetJobResultEx", new object[] { jobId });
         }
 
         /// <summary>
@@ -678,12 +715,16 @@ namespace SimpleDUTClientLibrary
         /// <param name="pollingDelay">Delay until polling begins, or 0 to begin polling immediately.
         /// Ignored if the polling interval is 0.</param>
         /// <param name="cancellationToken">Optional cancellation token for the task. Can be used to cancel the job.</param>
-        /// <returns>Task, populated with the stdout and stderr of the called process on completion.</returns>
+        /// <param name="returnExObject">If true, use GetJobResultEx and get a json string, otherwise use GetJobResult.</param>
+        /// <returns>Task, populated with the result of the job of the called process on completion. 
+        /// If returnExObject is true, this returns a json string, otherwise it's a simple string containing
+        /// the stdout and stderr of the called process.</returns>
         private async Task<string> _RunJob(string command, string args = null,
                                     int pollingInterval = 60,
                                     int timeout = 0,
                                     int pollingDelay = 60,
-                                    CancellationToken? cancellationToken = null)
+                                    CancellationToken? cancellationToken = null,
+                                    bool returnExObject = false)
         {
             Timer pollingTimer = null;
             Timer timeoutTimer = null;
@@ -744,7 +785,7 @@ namespace SimpleDUTClientLibrary
                 throw taskCompletionSource.Task.Exception;
             }
 
-            return GetJobResult(jobid);
+            return (returnExObject) ? GetJobResultEx(jobid) : GetJobResult(jobid);
         }
     }
 }

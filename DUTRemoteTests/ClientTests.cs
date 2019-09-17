@@ -15,6 +15,7 @@ using System.IO;
 using System.Net.Sockets;
 using SimpleJsonRpc;
 using System.Security.Principal;
+using Newtonsoft.Json.Linq;
 
 namespace DUTRemoteTests
 {
@@ -203,6 +204,26 @@ namespace DUTRemoteTests
             var result = task.Result;
             Assert.IsTrue(result.Length > 0);
             Assert.IsTrue(result.Contains("OS Name:"), "RunWithResultAsync output doesn't contain expected items.");
+        }
+
+        [TestMethod]
+        public void Client_RunWithResultAsyncEx()
+        {
+            var task = client.RunJobAsyncEx("systeminfo.exe", null);
+            var completed = task.Wait(5000);
+
+            Assert.IsTrue(completed, "RunJobAsyncEx task did not complete in a timely manner.");
+            Assert.IsTrue(task.IsCompleted && !task.IsFaulted, "RunJobAsyncEx task failed to complete.");
+
+            var result = task.Result;
+            var jObj = JObject.Parse(result);
+
+            var output = (string) jObj["output"];
+            var exitCode = (long) jObj["exitCode"];
+
+            Assert.IsTrue(output.Length > 0);
+            Assert.IsTrue(output.Contains("OS Name:"), "RunJobAsyncEx output doesn't contain expected items.");
+            Assert.IsTrue(exitCode == 0, "RunJobAsyncEx called process didn't return exit code 0.");
         }
 
         [TestMethod]

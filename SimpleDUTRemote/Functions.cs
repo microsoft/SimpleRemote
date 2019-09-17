@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using SimpleJsonRpc;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using Newtonsoft.Json.Linq;
 
 namespace SimpleDUTRemote
 {
@@ -365,6 +366,49 @@ namespace SimpleDUTRemote
             jobs.TryRemove(jobId, out tempJob);
             return result;
             
+        }
+
+        /// <summary>
+        /// Return job output, exit code, and other info as a json object.
+        /// </summary>
+        /// <remarks>Retrieves the output from a completed job as a json string. This
+        /// output includes:
+        ///   - output: stdout and stderr as a string
+        ///   - exitCode: the exit code of the completed process.
+        /// 
+        /// In future versions, this function may return additional information.
+        /// <br/>Like GetJobResult(), once this function is completed, all resources 
+        /// assocated with the job will be freed, and the job id will become
+        /// invalid. 
+        /// </remarks>
+        /// <param name="jobId">Job id returned by CreateJob()</param>
+        /// <returns>String of stdout and stderr from completed job.</returns>
+        [SimpleRpcMethod]
+        public string GetJobResultEx(long jobId)
+        {
+            Job tempJob;
+            if (!jobs.TryGetValue(jobId, out tempJob))
+            {
+                throw new InvalidOperationException("Invalid Job Id");
+            }
+
+            if (!tempJob.IsDone())
+            {
+                throw new InvalidOperationException("Job has not completed.");
+            }
+
+            var output = tempJob.GetResult();
+            var exitCode = tempJob.GetExitCode();
+            tempJob.Dispose();
+
+            jobs.TryRemove(jobId, out tempJob);
+
+            var jObj = new JObject(
+                new JProperty("output", output),
+                new JProperty("exitCode", exitCode)
+            );
+
+            return jObj.ToString();
         }
 
         /// <summary>
