@@ -673,6 +673,17 @@ namespace SimpleDUTRemote
             return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
         }
 
+        /// <summary>
+        /// Return the path to this SimpleRemote server.
+        /// </summary>
+        /// <returns>Path to SimpleRemote server.</returns>
+        [SimpleRpcMethod]
+        public static string GetServerLocation()
+        {
+            var asm = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+            return asm.Location;
+        }
+
         #endregion
 
         #region Extension System

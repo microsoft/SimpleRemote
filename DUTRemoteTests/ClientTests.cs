@@ -662,6 +662,16 @@ namespace DUTRemoteTests
             Assert.AreEqual(isTestRunningAsAdmin, client.GetIsRunningAsAdmin(), "Server did not return a correct response for if it was running as admin.");
         }
 
+        [TestMethod]
+        public void Client_GetServerPath()
+        {
+            var thisAssemblyLocation = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            var reportedLocation = client.GetServerLocation();
+
+            Assert.AreEqual(Path.GetDirectoryName(reportedLocation), Path.GetDirectoryName(thisAssemblyLocation), 
+                "Entry assembly locations don't match.");
+        }
+
 
         private bool CheckIfTrueInTimelimit(Func<bool> test, int timeout = 5000)
         {
