@@ -674,13 +674,13 @@ namespace SimpleDUTRemote
         }
 
         /// <summary>
-        /// Return the path to this SimpleRemote server.
+        /// Return the path to this SimpleRemote assembly (SimpleDUTRemote.DLL).
         /// </summary>
-        /// <returns>Path to SimpleRemote server.</returns>
+        /// <returns>Path to SimpleRemote server DLL.</returns>
         [SimpleRpcMethod]
         public static string GetServerLocation()
         {
-            var asm = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+            var asm = Assembly.GetExecutingAssembly();
             return asm.Location;
         }
 

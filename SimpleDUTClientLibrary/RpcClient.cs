@@ -523,17 +523,9 @@ namespace SimpleDUTClientLibrary
         }
 
         /// <summary>
-        /// Return the location of the SimpleRemote server executable on the DUT.
+        /// Return the location of the SimpleRemote server library on the DUT.
         /// </summary>
-        /// <remarks>This function returns the CallingAssembly (the path to an exe). If SimpleRemote was
-        /// started with SimpleRemoteConsole.exe, it will be the path to SimpleRemoteConsole. 
-        /// If SimpleRemote was started from another managed application,
-        /// it will return the path to that managed executable.
-        /// <br/><br/>If SimpleDUTRemote.dll was loaded from unmanaged code, it will return the path 
-        /// to the SimpleDUTRemote.dll path instead.
-        /// </remarks>
-        /// <returns>Path to the SimpleRemote server's calling assembly (if managed caller), or path to 
-        /// SimpleRemote DLL (if unmanaged caller).</returns>
+        /// <returns>Path to SimpleDUTRemote.DLL on Server</returns>
         public string GetServerLocation()
         {
             return CallRpc<string>("GetServerLocation");
