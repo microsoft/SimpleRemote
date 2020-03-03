@@ -15,7 +15,7 @@ def main():
     ModifyCsprojFiles(fileList, targetVer)
     ModifyIssFiles(fileList, targetVer)
 
-    print "Done."
+    print("Done.")
 
 
 
@@ -31,8 +31,8 @@ def GetFilesToModify():
 def ModifyCsprojFiles(fileList, targetVersion):
     csprojFiles = [f for f in fileList if os.path.splitext(f)[-1] == ".csproj"]
     for csproj in csprojFiles:
-        print "Updating file ", csproj
-        with open(csproj, "rb+") as f:
+        print("Updating file ", csproj)
+        with open(csproj, "r+") as f:
             fileData = f.read()
             f.seek(0)
             fileData = re.sub(r"<Version>(.*?)</Version>", 
@@ -44,8 +44,8 @@ def ModifyCsprojFiles(fileList, targetVersion):
 def ModifyIssFiles(fileList, targetVersion):
     issFiles = [f for f in fileList if os.path.splitext(f)[-1] == ".iss"]
     for issFile in issFiles:
-        print "Updating file ", issFile
-        with open(issFile, "rb+") as f:
+        print("Updating file ", issFile)
+        with open(issFile, "r+") as f:
             fileData = f.read()
             f.seek(0)
             fileData = re.sub(r"(#define MyAppVersion).*", 
