@@ -18,6 +18,9 @@ exception on the device, or you can completely disable firewalls on the device b
 
     netsh advfirewall set allprofiles state off
 
+If you only want to open specific ports of the firewall, see the [Firewall Details](#Firewall-Details)
+section, located toward the end of this document.
+
 ## Using the .NET Client ## 
 The easiest way to use the server is to use the .NET Client library, which is
 [documented here](@ref SimpleDUTClientLibrary.RpcClient). As a demonstration, we'll use the client
@@ -63,8 +66,23 @@ Nlog can also be configured to write to files, the Windows event log, and a numb
 information on how to configure logging, see the [NLog Tutorial](https://github.com/NLog/NLog/wiki/Tutorial#configuration).
 
 ## Running as a Service ##
-You can install SimpleRemote as a service on any Windows system. Simple launch the %SimpleRemoteConsole exe from an elevated command prompt, and include the arg `--install-service`, as well as any other flags you wish to use (such as specifying the port). By default, the service will not start automatically, unless you specify `--service-start-type auto` when installing the service.
+You can install SimpleRemote as a service on any Windows system. Simple launch the SimpleRemoteConsole exe from an elevated command prompt, and include the arg `--install-service`, as well as any other flags you wish to use (such as specifying the port). By default, the service will not start automatically, unless you specify `--service-start-type auto` when installing the service.
 
 The service can be removed from the system my running `--uninstall-service` from an elevated command prompt. 
 
 While running with a service is useful for some applications, note that the service will not be attached to a specific user session. As such, automating graphical applications may not work as expected. 
+
+## Firewall Details ##
+In some cases, you may only want to open specific ports on the DUT instead of turning off the firewall completely. If this the case, you'll need to open:
+
+  - The simple remote communication port (TCP 8000 by default)
+  - TCP port(s) for upload/download operations
+  - Optional: The UDP broadcast port (UDP 8001 by default)
+
+By defult, when an upload or download is started, the system running SimpleRemote will
+choose a random port for the transfer. However, this can be undesirable if you want to limit
+SimpleRemote to certain ports. To control which port is used for an upload or download,
+specify a port argument to the Upload or Download function. 
+
+*Note: Each transfer uses its own socket on the server machine. Do not 
+attempt to do multiple transfers on the same port at the same time.*

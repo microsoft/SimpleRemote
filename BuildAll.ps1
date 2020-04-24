@@ -42,8 +42,8 @@ dotnet pack -o $OUTDIR/nuget -c Release | Out-Null
 echo "Building server..."
 cd $BASEDIR\SimpleRemoteConsole
 dotnet publish -o $OUTDIR/SimpleRemoteServer-x64 -f net46 -r win10-x64 -c Release | Out-Null
-dotnet publish -o $OUTDIR/SimpleRemoteServer-arm64 -f netcoreapp2.0 -r win10-arm64 -c Release | Out-Null
-dotnet publish -o $OUTDIR/SimpleRemoteServer-x64-WCOS -f netcoreapp2.0 -r win10-x64 -c Release | Out-Null
+dotnet publish -o $OUTDIR/SimpleRemoteServer-arm64 -f netcoreapp2.1 -r win10-arm64 -c Release | Out-Null
+dotnet publish -o $OUTDIR/SimpleRemoteServer-x64-WCOS -f netcoreapp2.1 -r win10-x64 -c Release | Out-Null
 
 # build docs
 if (gcm doxygen -ErrorAction SilentlyContinue)

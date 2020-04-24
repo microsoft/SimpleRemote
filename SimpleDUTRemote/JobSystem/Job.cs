@@ -171,6 +171,13 @@ namespace SimpleDUTRemote.JobSystem
             {
                 throw new InvalidOperationException("Process hasn't finished executing. Cannot get result.");
             }
+            // wait until all streams have flushed
+            // this call cannot have a timeout (see reference source - adding a timeout will cause streams
+            // to be ignored), but we assume we're just waiting on logging, so any wait should be fast.
+            logger.Debug($"Waiting for job {jobId} process output stream to flush");
+            process.WaitForExit();
+            logger.Debug($"Child process streams flushed on job {jobId}.");
+
             return output != null ? output.ToString() : String.Empty;
         }
 
@@ -289,6 +296,7 @@ namespace SimpleDUTRemote.JobSystem
             if (safeToCleanManagedResources)
             {
                 CloseStreams();
+                this.process.Dispose();
             }
         }
 
