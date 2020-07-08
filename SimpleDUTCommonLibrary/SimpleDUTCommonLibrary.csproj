@@ -1,31 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Microsoft.SimpleRemote.SimpleRemoteCommonLibrary</PackageId>
-    <Authors>microsoft;surfaceauto</Authors>
+    <PackageId>Microsoft.SurfaceAutomationTeam.SimpleRemote.CommonLibrary</PackageId>
+    <Authors>Microsoft</Authors>
     <Version>1.4.1</Version>
-    <Company>Microsoft</Company>
-    <AssemblyTitle>SimpleDUTCommonLibrary</AssemblyTitle>
-    <Description>Common functions required by SimpleRemote server and clients.</Description>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <PackageTags>rpc;SimpleRemote</PackageTags>
-    <PackageLicenseUrl>https://mit-license.org/</PackageLicenseUrl>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Authors>Microsoft</Authors>
+    <Product>SimpleRemote</Product>
+    <Description>C# library used by both SimpleRemote Client and SimpleRemote Server</Description>
+    <Copyright>(c) Microsoft Corporation. All rights reserved.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/microsoft/SimpleRemote</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <!--
-    <RepositoryUrl>URL GOES HERE</RepositoryUrl>
-    -->
+    <PackageProjectUrl>https://github.com/microsoft/SimpleRemote</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/microsoft/SimpleRemote/master/assets/TeamLogo.png</PackageIconUrl>
+    <PackageIcon>TeamLogo.png</PackageIcon>
+    <PackageTags>rpc;SimpleRemote;device testing</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net46</TargetFrameworks>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="SharpZipLib" Version="1.1.0" />
     <PackageReference Include="System.IO.Compression" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\assets\TeamLogo.png" Pack="true" PackagePath="\" />
   </ItemGroup>
   
 </Project>

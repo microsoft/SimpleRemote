@@ -1,32 +1,35 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Microsoft.SimpleRemote.SimpleJsonRpc</PackageId>
-    <Authors>microsoft;surfaceauto</Authors>
+    <PackageId>Microsoft.SurfaceAutomationTeam.SimpleRemote.SimpleJsonRpc</PackageId>
+    <Authors>Microsoft</Authors>
     <Version>1.4.1</Version>
-    <Company>Microsoft</Company>
-    <AssemblyTitle>SimpleJsonRpc</AssemblyTitle>
+    <Authors>Microsoft</Authors>
+    <Product>SimpleRemote</Product>
     <Description>A minimalist json-rpc server for .NET Standard.</Description>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <PackageTags>rpc;jsonrpc;json-rpc</PackageTags>
-    <PackageLicenseUrl>https://mit-license.org/</PackageLicenseUrl>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Copyright>(c) Microsoft Corporation. All rights reserved.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/microsoft/SimpleRemote</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <!--
-    <RepositoryUrl>URL GOES HERE</RepositoryUrl>
-    -->
+    <PackageProjectUrl>https://github.com/microsoft/SimpleRemote</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/microsoft/SimpleRemote/master/assets/TeamLogo.png</PackageIconUrl>
+    <PackageIcon>TeamLogo.png</PackageIcon>
+    <PackageTags>rpc;SimpleRemote;jsonrpc</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0; net46</TargetFrameworks>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
     <PackageReference Include="NLog" Version="4.7.0" />
     <PackageReference Include="System.ValueTuple" Version="4.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\assets\TeamLogo.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

@@ -1,26 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Microsoft.SimpleRemote.SimpleRemoteClient</PackageId>
-    <Authors>microsoft;surfaceauto</Authors>
-    <Company>Microsoft</Company>
-    <AssemblyTitle>SimpleRemoteClient</AssemblyTitle>
-    <Description>C# client library for Microsoft SimpleRemote.</Description>
-  </PropertyGroup>
-
-    <PropertyGroup>
-    <PackageTags>rpc;SimpleRemote</PackageTags>
-    <PackageLicenseUrl>https://mit-license.org/</PackageLicenseUrl>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageId>Microsoft.SurfaceAutomationTeam.SimpleRemote.ClientLibrary</PackageId>
+    <Authors>Microsoft</Authors>
+    <Version>1.4.1</Version>
+    <Authors>Microsoft</Authors>
+    <Product>SimpleRemote</Product>
+    <Description>C# client library for Microsoft SimpleRemote</Description>
+    <Copyright>(c) Microsoft Corporation. All rights reserved.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/microsoft/SimpleRemote</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <!--
-    <RepositoryUrl>URL GOES HERE</RepositoryUrl>
-    -->
+    <PackageProjectUrl>https://github.com/microsoft/SimpleRemote</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/microsoft/SimpleRemote/master/assets/TeamLogo.png</PackageIconUrl>
+    <PackageIcon>TeamLogo.png</PackageIcon>
+    <PackageTags>rpc;SimpleRemote;device testing</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup>
     <TargetFrameworks>netcoreapp2.0;net46</TargetFrameworks>
     <VersionPrefix>1.4.1</VersionPrefix>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,6 +29,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SimpleDUTCommonLibrary\SimpleDUTCommonLibrary.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\assets\TeamLogo.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
