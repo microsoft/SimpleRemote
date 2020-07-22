@@ -354,3 +354,6 @@ MigrationBackup/
 BuildOutput/
 .vscode/
 output/
+
+#Keep the doc folder out of this branch
+doc/

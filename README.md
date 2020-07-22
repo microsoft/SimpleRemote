@@ -12,6 +12,8 @@ SimpleDUTRemote are the same thing, SimpleDUTRemote is just the older name for t
 This project is fully documented (with tutorials) in doxygen. To use, simply clone this code
 and run `doxygen` in the project directory. 
 
+You can also view the pre-built [documentation online](https://microsoft.github.io/SimpleRemote/doc/html/index.html).
+
 Binaries for both the server and client are available on the GitHub Releases page, and nuget packages
 are available for the client and the SimpleJsonRpc libraries (under the `Microsoft.SurfaceAutomationTeam.SimpleRemote`
 namespace).
