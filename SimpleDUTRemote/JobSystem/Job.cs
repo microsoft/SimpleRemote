@@ -141,23 +141,44 @@ namespace SimpleDUTRemote.JobSystem
                 streamingLoopTask.Wait();
             }
 
-            using (var client = new TcpClient())
-            {
-                // TCP Client's Connect method doesn't have a settable timeout, but we can cheat using this method.
-                // http://stackoverflow.com/questions/17118632/how-to-set-the-timeout-for-a-tcpclient
-                if (!client.ConnectAsync(callbackInfo.Address, callbackInfo.Port).Wait(NETWORK_TIMEOUT_MS))
-                {
-                    logger.Warn("Failed to contact client with completion message for job {0}", jobId);
-                    return;
-                }
+            // Retry connection attempt with exponential backoff
+            var retryAttempt = 0;
+            bool clientConnected = false;
 
-                using (var streamWriter = new StreamWriter(client.GetStream(), Encoding.ASCII))
+            while (retryAttempt < 5 && !clientConnected)
+            {
+                using (var client = new TcpClient())
                 {
-                    streamWriter.Write("JOB {0:d} COMPLETED", jobId);
+                    // TCP Client's Connect method doesn't have a settable timeout, but we can cheat using this method.
+                    // http://stackoverflow.com/questions/17118632/how-to-set-the-timeout-for-a-tcpclient
+                    if (!client.ConnectAsync(callbackInfo.Address, callbackInfo.Port).Wait(NETWORK_TIMEOUT_MS))
+                    {
+                        // Delay then retry connection
+                        Thread.Sleep(TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+                        retryAttempt++;
+                        logger.Warn("Attmpeting to send TCP completion message for job {0}: Retry Attempt {1}", this.jobId, retryAttempt);
+                    }
+                    else
+                    {
+                        clientConnected = true;
+
+                        using (var streamWriter = new StreamWriter(client.GetStream(), Encoding.ASCII))
+                        {
+                            streamWriter.Write("JOB {0:d} COMPLETED", jobId);
+                        }
+                    }
                 }
             }
 
-            logger.Debug("Successfully sent job completion message for job {0}", jobId);
+            // Log connection success or failure
+            if (clientConnected)
+            {
+                logger.Debug("Successfully sent job completion message for job {0}", jobId);
+            }
+            else
+            {
+                logger.Warn("Failed to contact client with completion message for job {0}", jobId);
+            }
         }
 
         public bool IsDone()
