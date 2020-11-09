@@ -131,7 +131,7 @@ namespace SimpleDUTRemote.JobSystem
 
         }
 
-        private void FireCompletionCallback()
+        private async void FireCompletionCallback()
         {
             logger.Debug("Attmpeting to send TCP completion message for job {0}", this.jobId);
 
@@ -151,15 +151,29 @@ namespace SimpleDUTRemote.JobSystem
                 {
                     // TCP Client's Connect method doesn't have a settable timeout, but we can cheat using this method.
                     // http://stackoverflow.com/questions/17118632/how-to-set-the-timeout-for-a-tcpclient
-                    if (!client.ConnectAsync(callbackInfo.Address, callbackInfo.Port).Wait(NETWORK_TIMEOUT_MS))
-                    {
+
+                    // Create Connection task and connection timeout task
+                    Task connectTask = client.ConnectAsync(callbackInfo.Address, callbackInfo.Port);
+                    Task timeoutTask = Task.Delay(NETWORK_TIMEOUT_MS);
+
+                    // Wait for either the connection or the timeout to be reached
+                    await Task.WhenAny(connectTask, timeoutTask);
+
+                    // Delay and retry if the connection failed or network timeout was reached
+                    if (connectTask.IsFaulted || timeoutTask.IsCompleted)
+                        {
+                        // Backoff the retry delay time
+                        var newDelay = Math.Pow(2, retryAttempt);
+                        logger.Warn("Timeout or Task Fault, task states:\n\tConnection: {0}\n\tTimeout: {1}\nRetry in: {2} seconds", connectTask.Status.ToString(), timeoutTask.Status.ToString(), newDelay.ToString());
+
                         // Delay then retry connection
-                        Thread.Sleep(TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+                        Thread.Sleep(TimeSpan.FromSeconds(newDelay));
                         retryAttempt++;
                         logger.Warn("Attmpeting to send TCP completion message for job {0}: Retry Attempt {1}", this.jobId, retryAttempt);
                     }
-                    else
+                    else // Use the TCP Client and complete callback
                     {
+                        logger.Debug("Task Completed with No Timeout, task states:\n\tConnection: {0}\n\tTimeout: {1}", connectTask.Status.ToString(), timeoutTask.Status.ToString());
                         clientConnected = true;
 
                         using (var streamWriter = new StreamWriter(client.GetStream(), Encoding.ASCII))
