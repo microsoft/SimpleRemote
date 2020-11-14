@@ -683,7 +683,7 @@ namespace SimpleDUTClientLibrary
                     .Wait(this.timeout))
             {
                 // time out
-                throw new TimeoutException("Timed out attempting to reach server.");
+                throw new TimeoutException("While attempting to reach the server, the request timed out.  Check your network connections, and please try again.");
             }
 
             return client;
