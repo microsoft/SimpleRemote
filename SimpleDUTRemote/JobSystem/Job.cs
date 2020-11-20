@@ -12,6 +12,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using SimpleDUTCommonLibrary;
 
 namespace SimpleDUTRemote.JobSystem
 {
@@ -131,7 +132,7 @@ namespace SimpleDUTRemote.JobSystem
 
         }
 
-        private async void FireCompletionCallback()
+        private void FireCompletionCallback()
         {
             logger.Debug("Attmpeting to send TCP completion message for job {0}", this.jobId);
 
@@ -147,33 +148,23 @@ namespace SimpleDUTRemote.JobSystem
 
             while (retryAttempt < 5 && !clientConnected)
             {
+                logger.Warn("Attmpeting to send TCP completion message for job {0}: Retry Attempt {1}", this.jobId, retryAttempt);
                 using (var client = new TcpClient())
                 {
-                    // TCP Client's Connect method doesn't have a settable timeout, but we can cheat using this method.
-                    // http://stackoverflow.com/questions/17118632/how-to-set-the-timeout-for-a-tcpclient
-
-                    // Create Connection task and connection timeout task
-                    Task connectTask = client.ConnectAsync(callbackInfo.Address, callbackInfo.Port);
-                    Task timeoutTask = Task.Delay(NETWORK_TIMEOUT_MS);
-
-                    // Wait for either the connection or the timeout to be reached
-                    await Task.WhenAny(connectTask, timeoutTask);
-
                     // Delay and retry if the connection failed or network timeout was reached
-                    if (connectTask.IsFaulted || timeoutTask.IsCompleted)
+                    if (!client.ConnectWithTimeout(callbackInfo.Address, callbackInfo.Port, NETWORK_TIMEOUT_MS))
                         {
                         // Backoff the retry delay time
                         var newDelay = Math.Pow(2, retryAttempt);
-                        logger.Warn("Timeout or Task Fault, task states:\n\tConnection: {0}\n\tTimeout: {1}\nRetry in: {2} seconds", connectTask.Status.ToString(), timeoutTask.Status.ToString(), newDelay.ToString());
+                        logger.Warn("Timeout or Task Fault, task states:\n\tConnection: Timed out\n\tTimeout: {0}\nRetry in: {1} seconds", NETWORK_TIMEOUT_MS, newDelay.ToString());
 
                         // Delay then retry connection
                         Thread.Sleep(TimeSpan.FromSeconds(newDelay));
-                        retryAttempt++;
-                        logger.Warn("Attmpeting to send TCP completion message for job {0}: Retry Attempt {1}", this.jobId, retryAttempt);
+                        retryAttempt++;     
                     }
                     else // Use the TCP Client and complete callback
                     {
-                        logger.Debug("Task Completed with No Timeout, task states:\n\tConnection: {0}\n\tTimeout: {1}", connectTask.Status.ToString(), timeoutTask.Status.ToString());
+                        logger.Debug("Task Completed, task states:\n\tConnection: OK\n\tTimeout: {0}", NETWORK_TIMEOUT_MS);
                         clientConnected = true;
 
                         using (var streamWriter = new StreamWriter(client.GetStream(), Encoding.ASCII))
@@ -262,7 +253,7 @@ namespace SimpleDUTRemote.JobSystem
 
             try
             {
-                if (!progressClient.ConnectAsync(streamEp.Address, streamEp.Port).Wait(NETWORK_TIMEOUT_MS))
+                if (!progressClient.ConnectWithTimeout(streamEp.Address, streamEp.Port, NETWORK_TIMEOUT_MS))
                 {
                     // failed to connect due to timeout - log and proceed.
                     connectionSuccessful = false;

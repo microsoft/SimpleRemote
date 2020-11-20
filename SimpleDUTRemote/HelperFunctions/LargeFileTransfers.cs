@@ -22,28 +22,29 @@ namespace SimpleDUTRemote.HelperFunctions
         public static void Upload(string path, TcpListener server, bool overwrite)
         {
             logger.Info($"Waiting for connection for directory transfer on port {((IPEndPoint)server.LocalEndpoint).Port}");
-            var connection = server.AcceptTcpClientAsync();
+            var asyncAccept = server.BeginAcceptTcpClient(null, null);
 
 #if DEBUG
-            connection.Wait();
+            asyncConnection.AsyncWaitHandle.WaitOne();
 #else
-            bool status = connection.Wait(10 * 1000);
-            if (!status)
+
+            if (!asyncAccept.AsyncWaitHandle.WaitOne(10 * 1000))
             {
-                logger.Warn($"Timed out waiting for client to begin uploading directory. Closing port.");
+                logger.Warn($"Timed out waiting for client to begin uploading files. Closing port.");
                 server.Stop();
                 return;
             }
 #endif
+            var client = server.EndAcceptTcpClient(asyncAccept);
             server.Stop();
 
-            using (var client = connection.Result)
+            using (client)
             using (var stream = client.GetStream())
             {
                 try
                 {
                     //var bytesReceived = ZipFunctions.ReadDirectoryFromStream(stream, path, overwrite);
-                    var bytesReceived = TarFunctions.ReadFileOrDirectoryFromStream(stream, path, overwrite, 
+                    var bytesReceived = TarFunctions.ReadFileOrDirectoryFromStream(stream, path, overwrite,
                         closeStreamWhenComplete: false);
                     logger.Info($"Successfully received {bytesReceived} bytes, written to {path}");
 
@@ -51,7 +52,7 @@ namespace SimpleDUTRemote.HelperFunctions
                     // If it did, and we try to shutdown the socket without reading the remaining bytes,
                     // it will trigger an RST packet. We can avoid this by clearing the inbound socket buffer.
                     var dummyBuffer = new byte[1024];
-                    while (stream.DataAvailable){
+                    while (stream.DataAvailable) {
                         stream.Read(dummyBuffer, 0, 1024);
                     }
 
@@ -71,30 +72,31 @@ namespace SimpleDUTRemote.HelperFunctions
                 {
                     logger.Error(e, "Upload failed.");
                 }
-                
+
             }
         }
 
         public static void Download(string path, TcpListener server)
         {
             logger.Info($"Waiting for connection for directory transfer on port {((IPEndPoint)server.LocalEndpoint).Port}");
-            var connection = server.AcceptTcpClientAsync();
+            var asyncAccept = server.BeginAcceptTcpClient(null, null);
 
 #if DEBUG
-            connection.Wait();
+            asyncConnection.AsyncWaitHandle.WaitOne();
 #else
-            bool status = connection.Wait(10 * 1000);
-            if (!status)
+
+            if (!asyncAccept.AsyncWaitHandle.WaitOne(10 * 1000))
             {
-                logger.Warn($"Timed out waiting for client to begin downloading directory. Closing port.");
+                logger.Warn($"Timed out waiting for client to begin downloading files. Closing port.");
                 server.Stop();
                 return;
             }
 #endif
+            var client = server.EndAcceptTcpClient(asyncAccept);
             server.Stop();
 
-            using (TcpClient client = connection.Result)
-            using (var stream =client.GetStream())
+            using (client)
+            using (var stream = client.GetStream())
             { 
 
                 try

@@ -58,12 +58,13 @@ namespace SimpleDUTClientLibrary
             if (!IPAddress.TryParse(serverAddress, out this.serverAddress))
             {
                 // lookup hostname if we can't parse out an ip address
-                var dnslookup = Dns.GetHostAddressesAsync(serverAddress);
-                if (!dnslookup.Wait(timeout))
+                var asyncDnsLookup = Dns.BeginGetHostAddresses(serverAddress, null, null);
+                if (!asyncDnsLookup.AsyncWaitHandle.WaitOne(timeout))
                 {
                     throw new TimeoutException("Unable to resolve hostname to IP address.");
                 }
-                this.serverAddress = dnslookup.Result.Where(x => x.AddressFamily == AddressFamily.InterNetwork).FirstOrDefault();
+                var dnsResult = Dns.EndGetHostAddresses(asyncDnsLookup);
+                this.serverAddress = dnsResult.Where(x => x.AddressFamily == AddressFamily.InterNetwork).FirstOrDefault();
                 if (this.serverAddress == null)
                 {
                     throw new ArgumentException("No IPv4 address for this hostname.");
@@ -377,7 +378,7 @@ namespace SimpleDUTClientLibrary
 
             using (TcpClient uploadClient = new TcpClient())
             {
-                if (!uploadClient.ConnectAsync(this.serverAddress, transferPort).Wait(timeout))
+                if (!uploadClient.ConnectWithTimeout(this.serverAddress, transferPort, timeout))
                 {
                     throw new TimeoutException("Could not connect to server's listening port to upload large file.");
                 }
@@ -439,7 +440,7 @@ namespace SimpleDUTClientLibrary
 
             using (TcpClient uploadClient = new TcpClient())
             {
-                if (!uploadClient.ConnectAsync(this.serverAddress, (int)transferInfo[0]).Wait(timeout))
+                if (!uploadClient.ConnectWithTimeout(this.serverAddress, (int)transferInfo[0], timeout))
                 {
                     throw new TimeoutException("Could not connect to server's listening port to upload large file.");
                 }
@@ -679,8 +680,7 @@ namespace SimpleDUTClientLibrary
         {
             // return a connection to the current server
             var client = new TcpClient();
-            if (!client.ConnectAsync(this.serverAddress, this.serverPort)
-                    .Wait(this.timeout))
+            if (!client.ConnectWithTimeout(this.serverAddress, this.serverPort, this.timeout))
             {
                 // time out
                 throw new TimeoutException("While attempting to reach the server, the request timed out.  Check your network connections, and please try again.");
