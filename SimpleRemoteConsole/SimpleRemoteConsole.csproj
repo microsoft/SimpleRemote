@@ -3,8 +3,8 @@
   <PropertyGroup>
     <Version>1.4.1</Version>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>netcoreapp2.1;net46</TargetFrameworks>
-    <RuntimeIdentifiers>win10-x64,win10-arm64</RuntimeIdentifiers>
+    <TargetFrameworks>netcoreapp3.1</TargetFrameworks>
+    <RuntimeIdentifiers>win10-x64;win10-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>

@@ -25,7 +25,7 @@ namespace SimpleDUTRemote.HelperFunctions
             var asyncAccept = server.BeginAcceptTcpClient(null, null);
 
 #if DEBUG
-            asyncConnection.AsyncWaitHandle.WaitOne();
+            asyncAccept.AsyncWaitHandle.WaitOne();
 #else
 
             if (!asyncAccept.AsyncWaitHandle.WaitOne(10 * 1000))
@@ -82,7 +82,7 @@ namespace SimpleDUTRemote.HelperFunctions
             var asyncAccept = server.BeginAcceptTcpClient(null, null);
 
 #if DEBUG
-            asyncConnection.AsyncWaitHandle.WaitOne();
+            asyncAccept.AsyncWaitHandle.WaitOne();
 #else
 
             if (!asyncAccept.AsyncWaitHandle.WaitOne(10 * 1000))

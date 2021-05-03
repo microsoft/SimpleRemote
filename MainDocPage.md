@@ -62,7 +62,7 @@ If you are deploying in a lab enviornment, acknowledge and accept the risks of u
   - Start the server with the command line flag `--SuppressUserWarning`. 
 
 ## Setting up the Client ##
-The client is a simple .NET DLL. Compile the SimpleDUTClientLibrary project in the release configuration, and copy the contents of the `net46` output folder to your client machine. If you used the `BuildAll.bat` script, you will have a client folder in the `output` directory. 
+The client is a simple .NET DLL. Compile the SimpleDUTClientLibrary project in the release configuration, and copy the contents of the `netstandard2.0` output folder to your client machine. If you used the `BuildAll.bat` script, you will have a client folder in the `output` directory. 
 
 Client documentation can be found here: SimpleDUTClientLibrary.RpcClient
 
