@@ -7,7 +7,7 @@
     <OutputTypeEx>library</OutputTypeEx>
     <StartupObject />
     <Authors>Subsystem Automation Taskforce</Authors>
-    <Version>1.4.1</Version>
+    <Version>1.4.2</Version>
   </PropertyGroup>
 
   <ItemGroup>

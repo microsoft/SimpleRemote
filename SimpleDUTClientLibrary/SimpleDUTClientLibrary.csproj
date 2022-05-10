@@ -3,7 +3,7 @@
   <PropertyGroup>
     <PackageId>Microsoft.SurfaceAutomationTeam.SimpleRemote.ClientLibrary</PackageId>
     <Authors>Microsoft</Authors>
-    <Version>1.4.1</Version>
+    <Version>1.4.2</Version>
     <Authors>Microsoft</Authors>
     <Product>SimpleRemote</Product>
     <Description>C# client library for Microsoft SimpleRemote</Description>
@@ -19,7 +19,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
-    <VersionPrefix>1.4.1</VersionPrefix>
+    <VersionPrefix>1.4.2</VersionPrefix>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 

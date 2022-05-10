@@ -3,7 +3,7 @@
   <PropertyGroup>
     <PackageId>Microsoft.SurfaceAutomationTeam.SimpleRemote.SimpleJsonRpc</PackageId>
     <Authors>Microsoft</Authors>
-    <Version>1.4.1</Version>
+    <Version>1.4.2</Version>
     <Authors>Microsoft</Authors>
     <Product>SimpleRemote</Product>
     <Description>A minimalist json-rpc server for .NET Standard.</Description>
