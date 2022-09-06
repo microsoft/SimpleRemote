@@ -510,11 +510,9 @@ namespace DUTRemoteTests
         public void Client_BadHostnameLookup()
         {
             RpcClient myclient;
-            var exception = Assert.ThrowsException<AggregateException>( () => myclient = new RpcClient("ThisIsAFakeHostName", 8000, 10000), 
+            var exception = Assert.ThrowsException<SocketException>( () => myclient = new RpcClient("ThisIsAFakeHostName", 8000, 10000), 
                 "System didn't fail when resolving an invalid hostname.");
 
-            Assert.IsInstanceOfType(exception.InnerException, typeof(SocketException),
-                "Looking up an invalid hostname did not throw a socket exception.");
         }
 
         [TestMethod]
@@ -523,11 +521,8 @@ namespace DUTRemoteTests
             // there is no server on port 9000
             RpcClient myclient = new RpcClient("localhost", 9000);
 
-            var exception = Assert.ThrowsException<AggregateException>(() => myclient.GetVersion(),
+            var exception = Assert.ThrowsException<Exception>(() => myclient.GetVersion(),
                 "System didn't fail when connecting to an invalid endpoint.");
-
-            Assert.IsInstanceOfType(exception.InnerException, typeof(SocketException),
-                "Connecting to an invalid endpoint did not throw a socket exception.");
         }
 
         [TestMethod]

@@ -683,7 +683,7 @@ namespace SimpleDUTClientLibrary
             if (!client.ConnectWithTimeout(this.serverAddress, this.serverPort, this.timeout))
             {
                 // time out
-                throw new TimeoutException("While attempting to reach the server, the request timed out.  Check your network connections, and please try again.");
+                throw new Exception("While attempting to reach the server, the request failed.  Check your network connections, and please try again.");
             }
 
             return client;
