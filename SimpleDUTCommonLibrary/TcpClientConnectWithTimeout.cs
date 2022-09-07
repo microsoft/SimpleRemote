@@ -19,7 +19,15 @@ namespace SimpleDUTCommonLibrary
         /// <returns>True if the connection is successful, false if the connection attempt timed out or failed.</returns>
         public static bool ConnectWithTimeout(this TcpClient tcpClient, string target, int port, int millisecondsTimeout)
         {
-            var asyncResult = tcpClient.BeginConnect(target, port, ar => tcpClient.EndConnect(ar), null);
+            var asyncResult = tcpClient.BeginConnect(target, port, ar => {
+                try {
+                    tcpClient.EndConnect(ar);
+                }
+                catch {
+                    // an exception occured, but this is ok - the connected propery of the client will be
+                    // false, which is what we use to check if a connection was successful. 
+                }
+            }, null);
 
             // if the wait returned true, check if the connection succeeded (and return connection status),
             // otherwise, return false.
@@ -38,7 +46,15 @@ namespace SimpleDUTCommonLibrary
         /// <returns>True if the connection is successful, false if the connection attempt timed out or failed.</returns>
         public static bool ConnectWithTimeout(this TcpClient tcpClient, IPAddress target, int port, int millisecondsTimeout)
         {
-            var asyncResult = tcpClient.BeginConnect(target, port, ar => tcpClient.EndConnect(ar), null);
+            var asyncResult = tcpClient.BeginConnect(target, port, ar => {
+                try {
+                    tcpClient.EndConnect(ar);
+                }
+                catch {
+                    // an exception occured, but this is ok - the connected propery of the client will be
+                    // false, which is what we use to check if a connection was successful. 
+                }
+            }, null);
 
             // if the wait returned true, check if the connection succeeded (and return connection status),
             // otherwise, return false.
