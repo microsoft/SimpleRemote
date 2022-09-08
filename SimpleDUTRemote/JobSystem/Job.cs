@@ -263,6 +263,7 @@ namespace SimpleDUTRemote.JobSystem
                 else
                 {
                     // connection successful
+                    logger.Debug("Successfully connected to progress listener.");
                     progressStream = new StreamWriter(progressClient.GetStream());
                     connectionSuccessful = true;
                 }
@@ -322,7 +323,15 @@ namespace SimpleDUTRemote.JobSystem
             if (safeToCleanManagedResources)
             {
                 CloseStreams();
-                this.process.Dispose();
+                
+                // Don't dispose of the process handle here. If you do, the completion
+                // callback won't fire if the process was killed (calling dispose will
+                // break the callback). 
+
+                // See tests Job_CheckStreamingProgress_KillProcess and
+                // Client_RunProcessAndKill_ExpectCompletionCallback to verify.
+
+                //process.Dispose();
             }
         }
 

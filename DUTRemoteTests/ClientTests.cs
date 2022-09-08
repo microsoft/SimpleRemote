@@ -33,6 +33,18 @@ namespace DUTRemoteTests
             server.Register(rpcFunctions);
             serverTask = server.Start();
             client = new RpcClient("127.0.0.1", 8000);
+
+            // setup nlog tracking (off by default)
+            // use this when debugging since vstest doesn't capture output.
+            /*
+            var config = new NLog.Config.LoggingConfiguration();
+            config.AddRuleForAllLevels(new NLog.Targets.FileTarget("logfile")
+            {
+                FileName = "client_test_log.txt"
+            });
+
+            NLog.LogManager.Configuration = config;
+            */
         }
 
         [TestMethod]
@@ -665,6 +677,30 @@ namespace DUTRemoteTests
 
             Assert.AreEqual(Path.GetDirectoryName(reportedLocation), Path.GetDirectoryName(thisAssemblyLocation), 
                 "Entry assembly locations don't match.");
+        }
+
+        [TestMethod]
+        public void Client_RunProcessAndKill_ExpectCompletionCallback()
+        {
+            // for this, we need a job that will last several seconds, and generate output.
+            // so we're going to send a powershell script that just prints 0 to 4, each
+            // with a one second gap.
+            // Powershell:  for ($i=0; $i -lt 5; $i++) { Write-Host "Message $i"; Start-Sleep -Seconds 1 }
+            // Base64 Script (UTF16LE): ZgBvAHIAIAAoACQAaQA9ADAAOwAgACQAaQAgAC0AbAB0ACAANQA7ACAAJABpACsAKwApACAAewAgAFcAcgBpAHQAZQAtAEgAbwBzAHQAIAAiAE0AZQBzAHMAYQBnAGUAIAAkAGkAIgA7ACAAUwB0AGEAcgB0AC0AUwBsAGUAZQBwACAALQBTAGUAYwBvAG4AZABzACAAMQAgAH0A
+
+            var powershellScript = "ZgBvAHIAIAAoACQAaQA9ADAAOwAgACQAaQAgAC0AbAB0ACAANQA7ACAAJABpACsAKwApACAAewAgAFcAcgBpAHQAZQAtAEgAbwBzAHQAIAAiAE0AZQBzAHMAYQBnAGUAIAAkAGkAIgA7ACAAUwB0AGEAcgB0AC0AUwBsAGUAZQBwACAALQBTAGUAYwBvAG4AZABzACAAMQAgAH0A";
+
+            AutoResetEvent evt = new AutoResetEvent(false);
+            Action<int> cb = (jobid) =>
+            {
+                evt.Set();
+            };
+
+            int newJobId = client.StartJobWithNotification("powershell.exe", $"-EncodedCommand {powershellScript}", cb);
+            Thread.Sleep(2000);
+            var killJobStatus = client.StopJob(newJobId);
+            Assert.IsTrue(killJobStatus, "Failed to kill remote job.");
+            Assert.IsTrue(evt.WaitOne(10000), "Completion callback never received.");
         }
 
 
