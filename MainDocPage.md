@@ -36,7 +36,7 @@ command.
 For .NET Core targets, you will want to compile as a self-contained deployment to generate an exe, which is done by specifying a runtime identifier (the `-r` option). 
 In general, it is easier to do this from the command line.
 
-To compile to Windows 10-x64, run this from the same directory as the .csproj file: `dotnet publish -c Release -r win10-x64 -f netcoreapp2.0`.
+To compile to Windows 10-x64, run this from the same directory as the .csproj file: `dotnet publish -c Release -r win10-x64 -f net6`.
 
 For instructions on how to compile for other platforms, [follow the instructions here](https://docs.microsoft.com/en-us/dotnet/core/deploying/deploy-with-cli).
 
