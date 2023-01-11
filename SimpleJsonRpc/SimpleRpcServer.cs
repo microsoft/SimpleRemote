@@ -116,13 +116,15 @@ namespace SimpleJsonRpc
             catch (Exception e)
             {
                 // In some versions of .NET this will be an ObjectDisposedError, while in others it will be
-                // an AggregateException. To avoid this, since our goal is to ignore this as long as it's the result
+                // a SocketException. To avoid this, since our goal is to ignore this as long as it's the result
                 // of a shutdown, we check the isSocketShuttingDown flag - if it's true, we ignore this exception.
                 // Otherwise we re-throw.
+                
                 if (isSocketShuttingDown) {
                     logger.Info("Server stopped");
                 }
                 else {
+                    logger.Error(e);
                     throw;
                 }
                 
